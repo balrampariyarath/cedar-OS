@@ -1,0 +1,38 @@
+{
+	"name": "cedar",
+	"version": "0.1.0",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "npm run rw && npm i && USE_LOCAL_SRC=true next dev --turbopack",
+		"dev:test": "npm run pb && npm i && USE_LOCAL_SRC=false next dev --turbopack",
+		"dev:manual": "npm i && USE_LOCAL_SRC=false next dev --turbopack",
+		"pb": "node scripts/prepare-build.mjs",
+		"pm": "node scripts/prepare-manual.mjs",
+		"build": "next build",
+		"rw": "node scripts/restore-workspace.mjs",
+		"start": "next start",
+		"lint": "next lint",
+		"pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
+		"test": "jest"
+	},
+	"dependencies": {
+		"cedar": "workspace:*",
+		"next": "^15.3.0",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	},
+	"devDependencies": {
+		"typescript": "^5",
+		"@types/node": "^20",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"@tailwindcss/postcss": "^4",
+		"tailwindcss": "^4",
+		"eslint": "^9",
+		"eslint-config-next": "15.3.5",
+		"@eslint/eslintrc": "^3"
+	}
+}
