@@ -83,7 +83,7 @@ const Container3D: React.FC<Container3DProps> = ({
 		<motion.div
 			id={id}
 			className={cn(
-				'w-full h-full rounded-lg border-[3px] backdrop-blur-[12px] overflow-hidden',
+				'w-full h-full rounded-xl border-[3px] backdrop-blur-[12px]',
 				// Only apply default border/background when no custom color provided
 				!color &&
 					(isDarkMode

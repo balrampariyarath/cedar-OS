@@ -2,14 +2,23 @@ import { useCedarStore, useChatInput } from '@/store/CedarStore';
 import Document from '@tiptap/extension-document';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
+// Work around TS JSX component type mismatch
+const EditorContentAny = EditorContent as any;
 import StarterKit from '@tiptap/starter-kit';
 import { motion } from 'motion/react';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Bold, Italic, Code } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import KeyboardShortcut from '@/components/KeyboardShortcut';
 
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
+import Mention from '@tiptap/extension-mention';
+import Suggestion from '@tiptap/suggestion';
+import { ReactRenderer, ReactNodeViewRenderer } from '@tiptap/react';
+import tippy, { Instance as TippyInstance } from 'tippy.js';
+import 'tippy.js/dist/tippy.css';
+import MentionList from './MentionList';
+import CustomMention from './CustomMention';
 
 // Define a custom document extension that only allows a single block
 const CustomDocument = Document.extend({
@@ -37,9 +46,10 @@ interface ChatContainerProps {
 	motionProps?: React.ComponentProps<typeof motion.div>;
 }
 
-export const ChatContainer: React.FC<ChatContainerProps> = ({
+// Replace ChatContainer definition with ChatInputContainer
+export const ChatInputContainer: React.FC<ChatContainerProps> = ({
 	children,
-	position = 'embedded',
+	position = 'bottom-center',
 	className = '',
 	color,
 	style,
@@ -48,7 +58,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 	// Determine className based on position
 	const positionClasses = {
 		'bottom-center':
-			'fixed bottom-20 left-1/2 transform -translate-x-1/2 w-full max-w-3xl z-[9999] cedar-caption-container',
+			'h-fit fixed bottom-20 left-1/2 transform -translate-x-1/2 w-full max-w-3xl z-[9999] cedar-caption-container',
 		embedded: 'w-full',
 		custom: '',
 	};
@@ -64,30 +74,33 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 	);
 };
 
-// Define a minimal interface for the store state
-interface CedarStoreState {
-	nextMessage: (text: string) => void;
-	// Define other required properties as needed
+interface MentionItem {
+	id: string;
+	label: string;
 }
 
-interface ChatInputProps {
+export const ChatInput: React.FC<{
+	position?: ChatContainerPosition;
 	handleFocus: () => void;
 	handleBlur: () => void;
 	isInputFocused: boolean;
 	onSubmit?: (input: string) => void;
-}
-
-export const ChatInput: React.FC<ChatInputProps> = ({
+	mentionItems?: MentionItem[];
+}> = ({
+	position,
 	handleFocus,
 	handleBlur,
 	isInputFocused,
 	onSubmit,
+	mentionItems = [],
 }) => {
-	const nextMessage = useCedarStore(
-		(state: CedarStoreState) => state.nextMessage
-	);
-	const { overrideInputContent, setChatInputContent, setOverrideInputContent } =
-		useChatInput();
+	const nextMessage = useCedarStore((state) => state.nextMessage);
+	const {
+		chatInputContent,
+		overrideInputContent,
+		setChatInputContent,
+		setOverrideInputContent,
+	} = useChatInput();
 	const [isEditorEmpty, setIsEditorEmpty] = useState(true);
 
 	const editor = useEditor({
@@ -100,6 +113,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 			CustomDocument, // Use our custom document
 			Placeholder.configure({
 				placeholder: 'Ask a question! Tab to start typing',
+			}),
+			Mention.configure({
+				HTMLAttributes: { class: 'mention' },
+				suggestion: (Suggestion as any)({
+					char: '@',
+					startOfLine: false,
+					items: ({ query }: { query: string }) =>
+						mentionItems
+							.filter((item) =>
+								item.label.toLowerCase().includes(query.toLowerCase())
+							)
+							.slice(0, 5),
+					render: () => {
+						let component: ReactRenderer;
+						let popup: TippyInstance[];
+						return {
+							onStart: (props: any) => {
+								component = new ReactRenderer(MentionList, {
+									props,
+									editor: editor!,
+								});
+								popup = tippy('body', {
+									getReferenceClientRect: props.clientRect,
+									appendTo: () => document.body,
+									content: component.element,
+									showOnCreate: true,
+									interactive: true,
+								});
+							},
+							onUpdate: (props: any) => {
+								component.updateProps(props);
+								popup[0].setProps({ getReferenceClientRect: props.clientRect });
+							},
+							onKeyDown: (props: any) => {
+								if (props.event.key === 'Escape') {
+									popup[0].hide();
+									return true;
+								}
+								return (component.ref as any)?.onKeyDown(props);
+							},
+							onExit: () => {
+								popup[0].destroy();
+								component.destroy();
+							},
+						};
+					},
+				}) as any,
+			}).extend({
+				addNodeView() {
+					return ReactNodeViewRenderer(CustomMention);
+				},
 			}),
 		],
 		content: '',
@@ -164,6 +228,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		setIsEditorEmpty(false);
 		convertoverrideInputContentToEditor(overrideInputContent.input);
 	}, [editor, overrideInputContent]);
+
+	// Sync store chatInputContent to editor when no override is active
+	useEffect(() => {
+		if (!editor || overrideInputContent?.input) return;
+		if (chatInputContent) {
+			editor.commands.setContent(chatInputContent);
+			setIsEditorEmpty(editor.isEmpty);
+		}
+	}, [editor, chatInputContent, overrideInputContent]);
 
 	// Convert overrideInputContent to editor content
 	const convertoverrideInputContentToEditor = (
@@ -244,23 +317,54 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	}, [isInputFocused, editor]);
 
 	return (
-		<div className='relative w-full' id='cedar-chat-input'>
-			<div className='flex items-center pl-2 text-sm'>
-				{editor && !editor.isFocused && (
-					<div className='flex items-center flex-shrink-0 mr-2'>
-						<KeyboardShortcut shortcut='Tab to type' />
-					</div>
-				)}
-				<motion.div
-					layoutId='chatInput'
-					className='flex-1 justify-center py-3'
-					onKeyDown={handleKeyDown}
-					aria-label='Message input'>
-					<EditorContent
-						editor={editor}
-						className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0  placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:empty:before:content-[attr(data-placeholder)] [&_.ProseMirror]:empty:before:text-gray-400 dark:[&_.ProseMirror]:empty:before:text-gray-500 [&_.ProseMirror]:empty:before:float-left [&_.ProseMirror]:empty:before:pointer-events-none'
-					/>
-				</motion.div>
+		<ChatInputContainer position={position} className='p-2'>
+			{/* Input context row - empty placeholder */}
+			<div id='input-context' className='flex items-center text-sm'>
+				<div>@</div>
+			</div>
+
+			{/* Chat editor row */}
+			<div className='relative w-full h-fit' id='cedar-chat-input'>
+				<div className='flex items-center text-sm'>
+					{editor && !editor.isFocused && (
+						<div className='flex items-center flex-shrink-0 mr-2'>
+							<KeyboardShortcut shortcut='Tab to type' />
+						</div>
+					)}
+					<motion.div
+						layoutId='chatInput'
+						className='flex-1 justify-center py-3'
+						onKeyDown={handleKeyDown}
+						aria-label='Message input'>
+						<EditorContentAny
+							editor={editor}
+							className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0  placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:empty:before:content-[attr(data-placeholder)] [&_.ProseMirror]:empty:before:text-gray-400 dark:[&_.ProseMirror]:empty:before:text-gray-500 [&_.ProseMirror]:empty:before:float-left [&_.ProseMirror]:empty:before:pointer-events-none'
+						/>
+					</motion.div>
+				</div>
+			</div>
+
+			{/* Tools and send row */}
+			<div
+				id='input-tools'
+				className='flex items-center  space-x-2  justify-between'>
+				<div>
+					<button
+						type='button'
+						className='p-1 text-gray-400 hover:text-gray-600'>
+						<Bold className='w-4 h-4' />
+					</button>
+					<button
+						type='button'
+						className='p-1 text-gray-400 hover:text-gray-600'>
+						<Italic className='w-4 h-4' />
+					</button>
+					<button
+						type='button'
+						className='p-1 text-gray-400 hover:text-gray-600'>
+						<Code className='w-4 h-4' />
+					</button>
+				</div>
 				<Container3DButton
 					id='send-chat'
 					motionProps={{
@@ -273,9 +377,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 					}}
 					onClick={handleSubmit}
 					color={isEditorEmpty ? undefined : '#93c5fd'}
-					className='flex items-center flex-shrink-0 ml-2 -mt-0.5'
+					className='flex items-center flex-shrink-0 ml-auto -mt-0.5'
 					childClassName='p-1.5'>
-					{/* <KeyboardShortcut shortcut='Enter' className='mr-1 -my-0.5' /> */}
 					<motion.div
 						animate={{ rotate: isEditorEmpty ? 0 : -90 }}
 						transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
@@ -283,6 +386,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 					</motion.div>
 				</Container3DButton>
 			</div>
-		</div>
+		</ChatInputContainer>
 	);
 };

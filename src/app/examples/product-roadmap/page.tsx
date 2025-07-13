@@ -21,6 +21,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { FeatureNode, FeatureNodeData } from './components/FeatureNode';
+import { ChatInput } from 'cedar';
 
 // -----------------------------------------------------------------------------
 // Sample data – replace with your own roadmap later
@@ -157,6 +158,16 @@ function FlowCanvas() {
 			fitView>
 			<Background gap={16} size={1} />
 			<Controls />
+			<ChatInput
+				position='bottom-center'
+				handleFocus={() => {}}
+				handleBlur={() => {}}
+				isInputFocused={false}
+				mentionItems={nodes.map((node) => ({
+					id: node.id,
+					label: node.data.title,
+				}))}
+			/>
 		</ReactFlow>
 	);
 }
