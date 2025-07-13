@@ -9,14 +9,12 @@ import ReactFlow, {
 	NodeTypes,
 	MarkerType,
 	addEdge,
-	applyNodeChanges,
-	applyEdgeChanges,
 	Connection,
-	EdgeChange,
-	NodeChange,
 	ConnectionLineType,
 	ReactFlowProvider,
 	useOnSelectionChange,
+	useNodesState,
+	useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -32,6 +30,8 @@ import {
 	getEdges,
 	saveEdges,
 } from '@/app/examples/product-roadmap/supabase/edges';
+import { Loader, CheckCircle } from 'lucide-react';
+import { motion } from 'motion/react';
 
 // -----------------------------------------------------------------------------
 // Sample data – replace with your own roadmap later
@@ -46,7 +46,7 @@ const initialNodes: Node<FeatureNodeData>[] = [
 			title: 'User Authentication',
 			description:
 				'Enable users to sign up, sign in, and manage sessions securely.',
-			upvotes: 42,
+			upvotes: 0,
 			comments: [],
 			status: 'done',
 		},
@@ -58,7 +58,7 @@ const initialNodes: Node<FeatureNodeData>[] = [
 		data: {
 			title: 'Team Workspaces',
 			description: 'Allow users to collaborate by creating shared workspaces.',
-			upvotes: 30,
+			upvotes: 0,
 			comments: [],
 			status: 'planned',
 		},
@@ -70,7 +70,7 @@ const initialNodes: Node<FeatureNodeData>[] = [
 		data: {
 			title: 'Mobile App',
 			description: 'Native iOS & Android applications for on-the-go access.',
-			upvotes: 58,
+			upvotes: 0,
 			comments: [],
 			status: 'backlog',
 		},
@@ -117,53 +117,43 @@ const nodeTypes: NodeTypes = {
 // -----------------------------------------------------------------------------
 
 function FlowCanvas() {
-	// React Flow handlers & state -------------------------------------------------
-	const [nodes, setNodes] =
-		React.useState<Node<FeatureNodeData>[]>(initialNodes);
-	const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
+	// Controlled state for nodes & edges
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	// Saving/loading state
+	const [isSaving, setIsSaving] = React.useState(false);
+	const [hasSaved, setHasSaved] = React.useState(false);
+	const initialMount = React.useRef(true);
 
-	// Fetch initial data from Supabase
+	// Fetch initial data
 	React.useEffect(() => {
-		async function fetchData() {
-			const fetchedNodes = await getNodes();
-			const fetchedEdges = await getEdges();
-			setNodes(fetchedNodes);
-			setEdges(fetchedEdges);
+		getNodes().then(setNodes);
+		getEdges().then(setEdges);
+	}, [setNodes, setEdges]);
+
+	// Persist changes with loading/saved indicator
+	React.useEffect(() => {
+		if (initialMount.current) {
+			initialMount.current = false;
+			return;
 		}
-		fetchData();
-	}, []);
-
-	const onNodesChange = React.useCallback(
-		(changes: NodeChange[]) =>
-			setNodes((nds) => {
-				const updated = applyNodeChanges(changes, nds);
-				saveNodes(updated);
-				return updated;
-			}),
-		[]
-	);
-
-	const onEdgesChange = React.useCallback(
-		(changes: EdgeChange[]) =>
-			setEdges((eds) => {
-				const updated = applyEdgeChanges(changes, eds);
-				saveEdges(updated);
-				return updated;
-			}),
-		[]
-	);
+		setIsSaving(true);
+		Promise.all([saveNodes(nodes), saveEdges(edges)])
+			.then(() => {
+				setIsSaving(false);
+				setHasSaved(true);
+				// keep the saved check icon visible indefinitely
+			})
+			.catch(() => setIsSaving(false));
+	}, [nodes, edges]);
 
 	const onConnect = React.useCallback(
-		(params: Connection) =>
-			setEdges((eds) => {
-				const updated = addEdge(
-					{ ...params, type: 'simplebezier', animated: true },
-					eds
-				);
-				saveEdges(updated);
-				return updated;
-			}),
-		[]
+		(params: Connection) => {
+			setEdges((eds) =>
+				addEdge({ ...params, type: 'simplebezier', animated: true }, eds)
+			);
+		},
+		[setEdges]
 	);
 
 	// Prevent node drag/pan selection interfering (optional)
@@ -175,24 +165,37 @@ function FlowCanvas() {
 	);
 
 	return (
-		<ReactFlow
-			nodes={nodes}
-			edges={edges}
-			nodeTypes={nodeTypes}
-			onNodesChange={onNodesChange}
-			onEdgesChange={onEdgesChange}
-			onConnect={onConnect}
-			onNodeClick={onNodeClick}
-			connectionLineType={ConnectionLineType.SmoothStep}
-			defaultEdgeOptions={{
-				type: 'simplebezier',
-				animated: true,
-				markerEnd: { type: MarkerType.ArrowClosed },
-			}}
-			fitView>
-			<Background gap={16} size={1} />
-			<Controls />
-		</ReactFlow>
+		<div className='h-full w-full relative'>
+			<ReactFlow
+				nodes={nodes}
+				edges={edges}
+				nodeTypes={nodeTypes}
+				onNodesChange={onNodesChange}
+				onEdgesChange={onEdgesChange}
+				onConnect={onConnect}
+				onNodeClick={onNodeClick}
+				connectionLineType={ConnectionLineType.SmoothStep}
+				defaultEdgeOptions={{
+					type: 'simplebezier',
+					animated: true,
+					markerEnd: { type: MarkerType.ArrowClosed },
+				}}
+				fitView>
+				<Background gap={16} size={1} />
+				<Controls />
+			</ReactFlow>
+			<div className='absolute top-4 right-4 z-20'>
+				{isSaving ? (
+					<motion.div
+						animate={{ rotate: 360 }}
+						transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+						<Loader size={20} className='text-gray-500' />
+					</motion.div>
+				) : hasSaved ? (
+					<CheckCircle size={20} className='text-green-500' />
+				) : null}
+			</div>
+		</div>
 	);
 }
 
@@ -204,7 +207,8 @@ function SelectedNodesPanel() {
 	const [selected, setSelected] = React.useState<Node<FeatureNodeData>[]>([]);
 
 	useOnSelectionChange({
-		onChange: ({ nodes }) => setSelected(nodes as Node<FeatureNodeData>[]),
+		onChange: ({ nodes }: { nodes: Node<FeatureNodeData>[] }) =>
+			setSelected(nodes),
 	});
 
 	return (
