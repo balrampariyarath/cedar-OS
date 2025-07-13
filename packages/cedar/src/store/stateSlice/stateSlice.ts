@@ -80,6 +80,8 @@ export interface StateSlice {
 		key: string,
 		setters: Record<string, Setter<any>>
 	) => boolean;
+	/** Retrieves the stored value for a given state key */
+	getCedarState: (key: string) => BasicStateValue | undefined;
 }
 
 // Create the registered state slice
@@ -198,6 +200,11 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 
 		getState: (key: string): registeredState<any> | undefined => {
 			return get().registeredStates[key];
+		},
+		/** Retrieves the stored value for a given state key */
+		getCedarState: (key: string) => {
+			const record = get().registeredStates[key];
+			return record?.value;
 		},
 
 		// Add custom setters to an existing state
