@@ -1,7 +1,7 @@
 import React from 'react';
 import { HTMLMotionProps } from 'motion/react';
-import Container3D from '@/components/ui/Container3D';
-import GlowingMesh from '@/components/ui/GlowingMesh';
+import Container3D from '@/components/containers/Container3D';
+import GlowingMesh from '@/components/ornaments/GlowingMesh';
 import { cn } from '@/styles/stylingUtils';
 
 interface Container3DButtonProps {

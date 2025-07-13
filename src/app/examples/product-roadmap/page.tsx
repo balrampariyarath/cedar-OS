@@ -2,19 +2,19 @@
 
 import React from 'react';
 import ReactFlow, {
-	Background,
-	Controls,
-	Edge,
-	Node,
-	NodeTypes,
-	MarkerType,
 	addEdge,
+	Background,
 	Connection,
 	ConnectionLineType,
+	Controls,
+	Edge,
+	MarkerType,
+	Node,
+	NodeTypes,
 	ReactFlowProvider,
-	useOnSelectionChange,
-	useNodesState,
 	useEdgesState,
+	useNodesState,
+	useOnSelectionChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -23,14 +23,15 @@ import {
 	FeatureNodeData,
 } from '@/app/examples/product-roadmap/components/FeatureNode';
 import {
-	getNodes,
-	saveNodes,
-} from '@/app/examples/product-roadmap/supabase/nodes';
-import {
 	getEdges,
 	saveEdges,
 } from '@/app/examples/product-roadmap/supabase/edges';
-import { Loader, CheckCircle } from 'lucide-react';
+import {
+	getNodes,
+	saveNodes,
+} from '@/app/examples/product-roadmap/supabase/nodes';
+import { ChatInput } from 'cedar';
+import { CheckCircle, Loader } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // -----------------------------------------------------------------------------
@@ -183,6 +184,16 @@ function FlowCanvas() {
 				fitView>
 				<Background gap={16} size={1} />
 				<Controls />
+				<ChatInput
+					position='bottom-center'
+					handleFocus={() => {}}
+					handleBlur={() => {}}
+					isInputFocused={false}
+					mentionItems={nodes.map((node) => ({
+						id: node.id,
+						label: node.data.title,
+					}))}
+				/>
 			</ReactFlow>
 			<div className='absolute top-4 right-4 z-20'>
 				{isSaving ? (
