@@ -5,7 +5,7 @@ import { productRoadmapWorkflow } from './workflows/product-roadmap-workflow';
 import { productRoadmapAgent } from './agents/product-roadmap-agent';
 
 export const mastra = new Mastra({
-	workflows: { productRoadmapWorkflow },
+	// workflows: { productRoadmapWorkflow },
 	agents: { productRoadmapAgent },
 	storage: new LibSQLStore({
 		// stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db

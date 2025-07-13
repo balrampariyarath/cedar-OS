@@ -1,10 +1,9 @@
+import { createChatInputSlice } from '@/store/chatInputSlice';
+import { createChatSlice } from '@/store/chatSlice';
+import { createStylingSlice } from '@/store/stylingSlice';
+import { CedarStore } from '@/store/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createChatInputSlice } from './chatInputSlice';
-import { createChatSlice } from './chatSlice';
-import { createStylingSlice } from './stylingSlice';
-import { CedarStore } from './types';
-import { createStateSlice } from '@/store/stateSlice/stateSlice';
 
 // Create the combined store
 export const useCedarStore = create<CedarStore>()(
@@ -13,7 +12,6 @@ export const useCedarStore = create<CedarStore>()(
 			...createStylingSlice(...a),
 			...createChatInputSlice(...a),
 			...createChatSlice(...a),
-			...createStateSlice(...a),
 		}),
 		{
 			name: 'cedar-store',
