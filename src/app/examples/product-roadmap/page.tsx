@@ -20,7 +20,18 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { FeatureNode, FeatureNodeData } from './components/FeatureNode';
+import {
+	FeatureNode,
+	FeatureNodeData,
+} from '@/app/examples/product-roadmap/components/FeatureNode';
+import {
+	getNodes,
+	saveNodes,
+} from '@/app/examples/product-roadmap/supabase/nodes';
+import {
+	getEdges,
+	saveEdges,
+} from '@/app/examples/product-roadmap/supabase/edges';
 
 // -----------------------------------------------------------------------------
 // Sample data – replace with your own roadmap later
@@ -111,23 +122,47 @@ function FlowCanvas() {
 		React.useState<Node<FeatureNodeData>[]>(initialNodes);
 	const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
 
+	// Fetch initial data from Supabase
+	React.useEffect(() => {
+		async function fetchData() {
+			const fetchedNodes = await getNodes();
+			const fetchedEdges = await getEdges();
+			setNodes(fetchedNodes);
+			setEdges(fetchedEdges);
+		}
+		fetchData();
+	}, []);
+
 	const onNodesChange = React.useCallback(
 		(changes: NodeChange[]) =>
-			setNodes((nds) => applyNodeChanges(changes, nds)),
+			setNodes((nds) => {
+				const updated = applyNodeChanges(changes, nds);
+				saveNodes(updated);
+				return updated;
+			}),
 		[]
 	);
 
 	const onEdgesChange = React.useCallback(
 		(changes: EdgeChange[]) =>
-			setEdges((eds) => applyEdgeChanges(changes, eds)),
+			setEdges((eds) => {
+				const updated = applyEdgeChanges(changes, eds);
+				saveEdges(updated);
+				return updated;
+			}),
 		[]
 	);
 
 	const onConnect = React.useCallback(
 		(params: Connection) =>
-			setEdges((eds) =>
-				addEdge({ ...params, type: 'simplebezier', animated: true }, eds)
-			),
+			setEdges((eds) => {
+				const updated = addEdge(
+					{ ...params, type: 'simplebezier', animated: true },
+					eds
+				);
+				saveEdges(updated);
+				return updated;
+			}),
 		[]
 	);
 
