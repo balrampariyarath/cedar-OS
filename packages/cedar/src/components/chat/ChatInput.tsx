@@ -1,29 +1,19 @@
+import KeyboardShortcut from '@/components/KeyboardShortcut';
 import { useCedarStore, useChatInput } from '@/store/CedarStore';
 import Document from '@tiptap/extension-document';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
-// Work around TS JSX component type mismatch
-const EditorContentAny = EditorContent as any;
 import StarterKit from '@tiptap/starter-kit';
+import { Bold, Code, Italic, SendHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
-import { SendHorizontal, Bold, Italic, Code } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import KeyboardShortcut from '@/components/KeyboardShortcut';
 
+import mentionSuggestion from '@/components/chat/suggestions';
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
 import Mention from '@tiptap/extension-mention';
-import Suggestion from '@tiptap/suggestion';
-import { ReactRenderer, ReactNodeViewRenderer } from '@tiptap/react';
-import tippy, { Instance as TippyInstance } from 'tippy.js';
-import 'tippy.js/dist/tippy.css';
-import MentionList from './MentionList';
-import CustomMention from './CustomMention';
-
-// Define a custom document extension that only allows a single block
-const CustomDocument = Document.extend({
-	content: 'block',
-});
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import { MentionNodeView } from './ChatMention';
 
 // Define interfaces for ChatInput types based on usage
 interface ChoiceInput {
@@ -74,10 +64,7 @@ export const ChatInputContainer: React.FC<ChatContainerProps> = ({
 	);
 };
 
-interface MentionItem {
-	id: string;
-	label: string;
-}
+// Inlined mention items removed; using external suggestion module
 
 export const ChatInput: React.FC<{
 	position?: ChatContainerPosition;
@@ -85,15 +72,7 @@ export const ChatInput: React.FC<{
 	handleBlur: () => void;
 	isInputFocused: boolean;
 	onSubmit?: (input: string) => void;
-	mentionItems?: MentionItem[];
-}> = ({
-	position,
-	handleFocus,
-	handleBlur,
-	isInputFocused,
-	onSubmit,
-	mentionItems = [],
-}) => {
+}> = ({ position, handleFocus, handleBlur, isInputFocused, onSubmit }) => {
 	const nextMessage = useCedarStore((state) => state.nextMessage);
 	const {
 		chatInputContent,
@@ -110,60 +89,19 @@ export const ChatInput: React.FC<{
 				document: false,
 				hardBreak: false,
 			}),
-			CustomDocument, // Use our custom document
+			Document.extend({
+				content: 'block',
+			}), // Use our custom document
 			Placeholder.configure({
 				placeholder: 'Ask a question! Tab to start typing',
 			}),
-			Mention.configure({
-				HTMLAttributes: { class: 'mention' },
-				suggestion: (Suggestion as any)({
-					char: '@',
-					startOfLine: false,
-					items: ({ query }: { query: string }) =>
-						mentionItems
-							.filter((item) =>
-								item.label.toLowerCase().includes(query.toLowerCase())
-							)
-							.slice(0, 5),
-					render: () => {
-						let component: ReactRenderer;
-						let popup: TippyInstance[];
-						return {
-							onStart: (props: any) => {
-								component = new ReactRenderer(MentionList, {
-									props,
-									editor: editor!,
-								});
-								popup = tippy('body', {
-									getReferenceClientRect: props.clientRect,
-									appendTo: () => document.body,
-									content: component.element,
-									showOnCreate: true,
-									interactive: true,
-								});
-							},
-							onUpdate: (props: any) => {
-								component.updateProps(props);
-								popup[0].setProps({ getReferenceClientRect: props.clientRect });
-							},
-							onKeyDown: (props: any) => {
-								if (props.event.key === 'Escape') {
-									popup[0].hide();
-									return true;
-								}
-								return (component.ref as any)?.onKeyDown(props);
-							},
-							onExit: () => {
-								popup[0].destroy();
-								component.destroy();
-							},
-						};
-					},
-				}) as any,
-			}).extend({
+			// Use external suggestion configuration for mentions with custom React node view
+			Mention.extend({
 				addNodeView() {
-					return ReactNodeViewRenderer(CustomMention);
+					return ReactNodeViewRenderer(MentionNodeView);
 				},
+			}).configure({
+				suggestion: mentionSuggestion,
 			}),
 		],
 		content: '',
@@ -336,7 +274,7 @@ export const ChatInput: React.FC<{
 						className='flex-1 justify-center py-3'
 						onKeyDown={handleKeyDown}
 						aria-label='Message input'>
-						<EditorContentAny
+						<EditorContent
 							editor={editor}
 							className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0  placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:empty:before:content-[attr(data-placeholder)] [&_.ProseMirror]:empty:before:text-gray-400 dark:[&_.ProseMirror]:empty:before:text-gray-500 [&_.ProseMirror]:empty:before:float-left [&_.ProseMirror]:empty:before:pointer-events-none'
 						/>
