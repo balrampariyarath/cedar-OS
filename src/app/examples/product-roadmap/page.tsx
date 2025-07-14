@@ -189,10 +189,6 @@ function FlowCanvas() {
 					handleFocus={() => {}}
 					handleBlur={() => {}}
 					isInputFocused={false}
-					mentionItems={nodes.map((node) => ({
-						id: node.id,
-						label: node.data.title,
-					}))}
 				/>
 			</ReactFlow>
 			<div className='absolute top-4 right-4 z-20'>

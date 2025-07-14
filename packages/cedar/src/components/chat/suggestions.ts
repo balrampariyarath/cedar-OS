@@ -86,13 +86,21 @@ const mentionSuggestion = {
 			},
 
 			onKeyDown: (props: any) => {
-				if (props.event.key === 'Escape') {
-					component.destroy();
+				const { event } = props;
 
+				if (event.key === 'Escape') {
+					component.destroy();
+					event.preventDefault();
+					event.stopPropagation();
 					return true;
 				}
 
-				return (component.ref as any)?.onKeyDown(props);
+				const handled = (component.ref as any)?.onKeyDown(props);
+				if (handled) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+				return handled;
 			},
 
 			onExit: () => {

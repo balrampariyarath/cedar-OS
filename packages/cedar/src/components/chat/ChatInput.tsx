@@ -12,7 +12,8 @@ import mentionSuggestion from '@/components/chat/suggestions';
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
 import Mention from '@tiptap/extension-mention';
-import 'tippy.js/dist/tippy.css';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import { MentionNodeView } from './ChatMention';
 
 // Define interfaces for ChatInput types based on usage
 interface ChoiceInput {
@@ -94,9 +95,12 @@ export const ChatInput: React.FC<{
 			Placeholder.configure({
 				placeholder: 'Ask a question! Tab to start typing',
 			}),
-			// Use external suggestion configuration for mentions
-			Mention.configure({
-				HTMLAttributes: { class: 'mention' },
+			// Use external suggestion configuration for mentions with custom React node view
+			Mention.extend({
+				addNodeView() {
+					return ReactNodeViewRenderer(MentionNodeView);
+				},
+			}).configure({
 				suggestion: mentionSuggestion,
 			}),
 		],
