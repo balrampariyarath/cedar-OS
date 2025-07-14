@@ -30,7 +30,7 @@ import {
 	getNodes,
 	saveNodes,
 } from '@/app/examples/product-roadmap/supabase/nodes';
-import { ChatInput } from 'cedar';
+import { ChatInput, registerState } from 'cedar';
 import { CheckCircle, Loader } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -125,6 +125,19 @@ function FlowCanvas() {
 	const [isSaving, setIsSaving] = React.useState(false);
 	const [hasSaved, setHasSaved] = React.useState(false);
 	const initialMount = React.useRef(true);
+
+	registerState({
+		value: nodes,
+		setValue: setNodes,
+		key: 'nodes',
+		description: 'Product roadmap nodes',
+	});
+	registerState({
+		key: 'edges',
+		value: edges,
+		setValue: setEdges,
+		description: 'Product roadmap edges',
+	});
 
 	// Fetch initial data
 	React.useEffect(() => {

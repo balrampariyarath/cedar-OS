@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod/v4';
 import { useCedarStore } from '@/store/CedarStore';
-import type { BasicStateValue } from '@/store/stateSlice/stateSlice';
+import type { BasicStateValue, Setter } from '@/store/stateSlice/stateSlice';
 
 /**
  * Hook that registers and returns a piece of state from the Cedar store,
@@ -10,23 +10,30 @@ import type { BasicStateValue } from '@/store/stateSlice/stateSlice';
  *
  * @param key Unique key for the state in the store.
  * @param initialValue Initial value for the state.
- * @param displayName Optional human-readable name for debugging.
+ * @param description Optional human-readable description for AI metadata.
+ * @param customSetters Optional custom setter functions for this state.
  * @param schema Optional Zod schema for validating the state.
  * @returns [state, setState] tuple.
  */
 export function useCedarState<T extends BasicStateValue>(
 	key: string,
 	initialValue: T,
-	displayName?: string,
+	description?: string,
+	customSetters?: Record<string, Setter<T>>,
 	schema?: ZodSchema<T>
 ): [T, (newValue: T) => void] {
-	// Register state on first render
+	// Determine Zod schema to use
+	const effectiveSchema = schema ?? (z.any() as unknown as ZodSchema<T>);
+
+	// Register state on first render (and only once)
+	const registerStateFn = useCedarStore((s) => s.registerState);
 	useEffect(() => {
-		useCedarStore.getState().registerState({
+		registerStateFn<T>({
 			key,
-			initialValue,
-			displayName,
-			schema: schema ?? (z.any() as unknown as ZodSchema<T>),
+			value: initialValue,
+			description,
+			customSetters,
+			schema: effectiveSchema,
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [key]);
@@ -38,22 +45,18 @@ export function useCedarState<T extends BasicStateValue>(
 	// Fallback to initialValue if for some reason undefined
 	const value = stateValue !== undefined ? stateValue : initialValue;
 
-	// Selector for the setter function
-	const setState = useCedarStore(
-		(state) =>
-			state.registeredStates[key]?.setters.setValue.execute as
-				| ((newValue: T) => void)
-				| undefined
-	);
-
-	// Provide a no-op fallback setter if it doesn't exist yet
+	// Provide a setter that re-registers with the new value (updates stored state)
 	const stableSetState = useCallback(
 		(newValue: T) => {
-			if (setState) {
-				setState(newValue);
-			}
+			registerStateFn<T>({
+				key,
+				value: newValue,
+				description,
+				customSetters,
+				schema: effectiveSchema,
+			});
 		},
-		[setState]
+		[key, registerStateFn, description, customSetters, effectiveSchema]
 	);
 
 	return [value, stableSetState];
