@@ -1,3 +1,5 @@
+// @stateSlice: central registry for React component states with AI-readable metadata.
+// Supports manual registration via registerState (with optional external setter) and automatic registration via useCedarState hook.
 import { StateCreator } from 'zustand';
 import { CedarStore } from '@/store/types';
 import type { ZodSchema } from 'zod';
@@ -13,22 +15,6 @@ export type BasicStateValue =
 	| undefined
 	| void;
 
-type ValueTypeString<T> = T extends string
-	? 'string'
-	: T extends number
-	? 'number'
-	: T extends boolean
-	? 'boolean'
-	: T extends unknown[]
-	? 'array'
-	: T extends undefined
-	? 'undefined'
-	: T extends void
-	? 'void'
-	: T extends object
-	? 'object'
-	: 'object'; // fallback
-
 // Setter types
 export interface SetterParameter {
 	name: string;
@@ -37,8 +23,14 @@ export interface SetterParameter {
 	optional?: boolean;
 }
 
-// Define a flexible type for setter functions
-export type SetterFunction<T = BasicStateValue> = (newValue: T) => void;
+// A setter function that takes an input value and the current state to produce updates
+export type BaseSetter<T = BasicStateValue> = (state: T) => void;
+
+// A setter function that takes an input value and the current state to produce updates
+export type SetterFunction<T = BasicStateValue> = (
+	state: T,
+	inputValue?: unknown
+) => void;
 
 // Setter object that includes both metadata and execution function
 export interface Setter<T = BasicStateValue> {
@@ -48,38 +40,46 @@ export interface Setter<T = BasicStateValue> {
 	execute: SetterFunction<T>;
 }
 
-// Interface for a single registered state object
+// Represents a single registered state with separate primary setter and additional custom setters
 export interface registeredState<T = BasicStateValue> {
 	key: string;
 	value: T;
-	valueType: ValueTypeString<T>;
-	displayName?: string;
-	schema: ZodSchema<T>;
-	setters: Record<string, Setter<T>>;
+	setValue?: BaseSetter<T>;
+	description?: string;
+	schema?: ZodSchema<T>;
+	// Primary state updater
+	// Additional named setter functions
+	customSetters?: Record<string, Setter<T>>;
 }
 
 // Define the registered state slice
 export interface StateSlice {
 	// State
-	registeredStates: Record<string, registeredState<any>>;
+	registeredStates: Record<string, registeredState>;
 
 	// Actions
+	/**
+	 * Register a new state or replace an existing one.
+	 * @param config.setValue Optional React setState function for external state syncing.
+	 * @param config.customSetters Optional custom setters for this state.
+	 * @param config.key Unique key for the state.
+	 * @param config.value Initial value for the state.
+	 * @param config.description Optional description for AI metadata.
+	 * @param config.schema Zod schema for value validation.
+	 */
 	registerState: <T extends BasicStateValue>(config: {
 		key: string;
-		initialValue: T;
-		displayName?: string;
-		schema: ZodSchema<T>;
-		// If custom setters is not specified, and default setter is null, this state is view only.
+		value: T;
+		// Primary state updater: (inputValue, currentState)
+		setValue?: SetterFunction<T>;
+		description?: string;
+		schema?: ZodSchema<T>;
 		customSetters?: Record<string, Setter<T>>;
-		defaultSetter?: SetterFunction<T> | null; // Accept a setter function directly. Set to null to have no default setter (can still use custom setters). If not set, Cedar will do state management and generate a default setter.
 	}) => void;
-	getState: (key: string) => registeredState<any> | undefined;
+	getState: (key: string) => registeredState | undefined;
 
 	// Method to add custom setters to an existing state
-	addCustomSetters: (
-		key: string,
-		setters: Record<string, Setter<any>>
-	) => boolean;
+	addCustomSetters: (key: string, setters: Record<string, Setter>) => boolean;
 	/** Retrieves the stored value for a given state key */
 	getCedarState: (key: string) => BasicStateValue | undefined;
 }
@@ -96,96 +96,41 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 		// Register a new state or replace an existing one
 		registerState: <T extends BasicStateValue>(config: {
 			key: string;
-			initialValue: T;
-			displayName?: string;
-			schema: ZodSchema<T>;
+			value: T;
+			setValue?: SetterFunction<T>;
+			description?: string;
+			schema?: ZodSchema<T>;
 			customSetters?: Record<string, Setter<T>>;
-			defaultSetter?: SetterFunction<T> | null;
 		}) => {
+			const stateExists = Boolean(get().registeredStates[config.key]);
+			if (stateExists) {
+				// Update only the stored value
+				set((state) => ({
+					registeredStates: {
+						...state.registeredStates,
+						[config.key]: {
+							...state.registeredStates[config.key],
+							value: config.value,
+						},
+					},
+				}));
+				return;
+			}
+			// Initial registration of a new state
 			set((state) => {
-				const valueType = inferValueType(config.initialValue);
-
-				function inferValueType<T>(value: T): ValueTypeString<T> {
-					if (value === undefined || value === null)
-						return 'void' as ValueTypeString<T>;
-					if (Array.isArray(value)) return 'array' as ValueTypeString<T>;
-					const type = typeof value;
-					if (
-						type === 'string' ||
-						type === 'number' ||
-						type === 'boolean' ||
-						type === 'object' ||
-						type === 'undefined'
-					)
-						return type as ValueTypeString<T>;
-					return 'object' as ValueTypeString<T>;
-				}
-				// Create the default setter
-				const createDefaultSetter = (): Setter<T> => {
-					return {
-						name: 'setValue', // Fixed name for default setter
-						description: `Set the entire value of ${
-							config.displayName || config.key
-						}`,
-						parameters: [
-							{
-								name: 'newValue',
-								type: valueType,
-								description: `New value to set for ${
-									config.displayName || config.key
-								}`,
-							},
-						],
-						execute:
-							config.defaultSetter ||
-							function (newValue: T) {
-								// Type checking
-								const newValueType = Array.isArray(newValue)
-									? 'array'
-									: typeof newValue;
-								if (newValueType !== valueType) {
-									console.error(
-										`Type mismatch: Expected ${valueType}, got ${newValueType}`
-									);
-									return;
-								}
-
-								// Update state
-								set((state) => ({
-									registeredStates: {
-										...state.registeredStates,
-										[config.key]: {
-											...state.registeredStates[config.key],
-											value: newValue,
-										},
-									},
-								}));
-							},
-					};
-				};
-
-				// Check if we have a placeholder state already
-				const existingState = state.registeredStates[config.key];
-
-				// Combine custom setters with default setter
-				const finalSetters: Record<string, Setter<T>> = {
-					...(existingState?.setters || {}), // Keep existing setters if we have a placeholder
-					...(config.customSetters || {}),
-				};
-
-				// Add default setter unless explicitly set to null
-				if (config.defaultSetter !== null) {
-					finalSetters['setValue'] = createDefaultSetter();
-				}
+				// Extract primary setter and custom setters
+				const primarySetter = config.setValue;
+				const namedSetters = config.customSetters;
 
 				// Create the state object
 				const registeredState: registeredState<T> = {
 					key: config.key,
-					value: config.initialValue,
-					valueType,
-					displayName: config.displayName,
+					value: config.value,
+					description: config.description,
 					schema: config.schema,
-					setters: finalSetters,
+					// Primary updater separate from namedSetters
+					setValue: primarySetter,
+					customSetters: namedSetters,
 				};
 
 				// Return updated state with the new/replaced registered state
@@ -194,11 +139,11 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 						...state.registeredStates,
 						[config.key]: registeredState,
 					},
-				};
+				} as Partial<CedarStore>;
 			});
 		},
 
-		getState: (key: string): registeredState<any> | undefined => {
+		getState: (key: string): registeredState | undefined => {
 			return get().registeredStates[key];
 		},
 		/** Retrieves the stored value for a given state key */
@@ -210,7 +155,7 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 		// Add custom setters to an existing state
 		addCustomSetters: (
 			key: string,
-			setters: Record<string, Setter<any>>
+			setters: Record<string, Setter>
 		): boolean => {
 			const existingState = get().registeredStates[key];
 
@@ -220,48 +165,56 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 				console.info(
 					`Creating placeholder state for "${key}" with custom setters`
 				);
-				set((state) => ({
-					registeredStates: {
-						...state.registeredStates,
-						[key]: {
-							key: key,
-							value: '', // Default empty value
-							valueType: 'string', // Default type
-							schema: z.any() as unknown as ZodSchema<any>,
-							setters: { ...setters },
-						},
-					},
-				}));
+				set(
+					(state) =>
+						({
+							registeredStates: {
+								...state.registeredStates,
+								[key]: {
+									key: key,
+									value: '', // Default empty value
+									schema: z.any() as unknown as ZodSchema<BasicStateValue>,
+									// Optional description placeholder
+									description: '',
+									customSetters: { ...setters },
+								},
+							},
+						} as Partial<CedarStore>)
+				);
 				return true;
 			}
 
-			set((state) => ({
-				registeredStates: {
-					...state.registeredStates,
-					[key]: {
-						...state.registeredStates[key],
-						// Merge existing setters with new ones
-						setters: {
-							...state.registeredStates[key].setters,
-							...setters,
+			set(
+				(state) =>
+					({
+						registeredStates: {
+							...state.registeredStates,
+							[key]: {
+								...state.registeredStates[key],
+								// Merge existing customSetters with new ones
+								customSetters: {
+									...(state.registeredStates[key].customSetters || {}),
+									...setters,
+								},
+							},
 						},
-					},
-				},
-			}));
+					} as Partial<CedarStore>)
+			);
 
 			return true;
 		},
 	};
 };
 
-function isregisteredState<T>(value: unknown): value is registeredState<T> {
+export function isRegisteredState<T>(
+	value: unknown
+): value is registeredState<T> {
 	return (
 		typeof value === 'object' &&
 		value !== null &&
 		'value' in value &&
 		'key' in value &&
-		'valueType' in value &&
-		'setters' in value &&
+		'customSetters' in value &&
 		'schema' in value
 	);
 }

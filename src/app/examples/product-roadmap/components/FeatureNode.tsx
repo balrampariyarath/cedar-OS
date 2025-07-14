@@ -21,6 +21,22 @@ export type Comment = {
 
 export type FeatureStatus = 'done' | 'planned' | 'backlog' | 'in progress';
 
+import { z } from 'zod';
+
+export const FeatureNodeDataSchema = z.object({
+	title: z.string(),
+	description: z.string(),
+	upvotes: z.number(),
+	comments: z.array(
+		z.object({
+			id: z.string(),
+			author: z.string(),
+			text: z.string(),
+		})
+	),
+	status: z.enum(['done', 'planned', 'backlog']),
+}) satisfies z.ZodType<FeatureNodeData>;
+
 export interface FeatureNodeData {
 	title: string;
 	description: string;

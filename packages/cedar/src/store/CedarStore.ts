@@ -44,3 +44,7 @@ export const useChatInput = () => ({
 		(state) => state.setOverrideInputContent
 	),
 });
+
+// Export registerState function to allow dynamic state registration
+export const registerState: CedarStore['registerState'] = (config) =>
+	useCedarStore.getState().registerState(config);
