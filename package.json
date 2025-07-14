@@ -16,19 +16,24 @@
 		"start": "next start",
 		"lint": "next lint",
 		"pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
-		"test": "jest"
+		"test": "jest",
+		"ust": "supabase gen types typescript --project-id ttjnurbqxigvmtlsvclx --schema public > .src/app/examples/product-roadmap/supabase/database.types.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.0-beta.6",
 		"@ai-sdk/react": "^2.0.0-beta.14",
+		"@radix-ui/react-slot": "^1.2.3",
 		"ai": "^5.0.0-beta.14",
 		"cedar": "workspace:*",
+		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"lucide-react": "^0.525.0",
 		"next": "^15.3.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
+		"react-markdown": "^10.1.0",
 		"reactflow": "^11.11.0",
+		"remark-gfm": "^4.0.1",
 		"tailwind-merge": "^3.3.1",
 		"zod": "^3.25.76"
 	},
@@ -41,6 +46,7 @@
 		"eslint": "^9",
 		"eslint-config-next": "15.3.5",
 		"tailwindcss": "^4",
+		"tw-animate-css": "^1.3.5",
 		"typescript": "^5"
 	}
 }

@@ -125,6 +125,7 @@ function FlowCanvas() {
 	const [isSaving, setIsSaving] = React.useState(false);
 	const [hasSaved, setHasSaved] = React.useState(false);
 	const initialMount = React.useRef(true);
+	const saveTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Fetch initial data
 	React.useEffect(() => {
@@ -132,20 +133,29 @@ function FlowCanvas() {
 		getEdges().then(setEdges);
 	}, [setNodes, setEdges]);
 
-	// Persist changes with loading/saved indicator
+	// Persist changes with loading/saved indicator (debounced)
 	React.useEffect(() => {
 		if (initialMount.current) {
 			initialMount.current = false;
 			return;
 		}
-		setIsSaving(true);
-		Promise.all([saveNodes(nodes), saveEdges(edges)])
-			.then(() => {
-				setIsSaving(false);
-				setHasSaved(true);
-				// keep the saved check icon visible indefinitely
-			})
-			.catch(() => setIsSaving(false));
+		if (saveTimeout.current) {
+			clearTimeout(saveTimeout.current);
+		}
+		saveTimeout.current = setTimeout(() => {
+			setIsSaving(true);
+			Promise.all([saveNodes(nodes), saveEdges(edges)])
+				.then(() => {
+					setIsSaving(false);
+					setHasSaved(true);
+				})
+				.catch(() => setIsSaving(false));
+		}, 1000);
+		return () => {
+			if (saveTimeout.current) {
+				clearTimeout(saveTimeout.current);
+			}
+		};
 	}, [nodes, edges]);
 
 	const onConnect = React.useCallback(
