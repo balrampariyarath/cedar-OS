@@ -4,6 +4,10 @@ import { memo, useState, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { saveNodes } from '@/app/examples/product-roadmap/supabase/nodes';
+import { Badge } from '@/components/ui/badge';
+import { ChevronDown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -15,7 +19,7 @@ export type Comment = {
 	text: string;
 };
 
-export type FeatureStatus = 'done' | 'planned' | 'backlog';
+export type FeatureStatus = 'done' | 'planned' | 'backlog' | 'in progress';
 
 export interface FeatureNodeData {
 	title: string;
@@ -23,6 +27,8 @@ export interface FeatureNodeData {
 	upvotes: number;
 	comments: Comment[];
 	status: FeatureStatus;
+	handleLabels?: Record<string, string>;
+	details?: string;
 }
 
 /**
@@ -43,10 +49,35 @@ function FeatureNodeComponent({
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [descriptionValue, setDescriptionValue] = useState(description);
 	const { setNodes } = useReactFlow();
+	const handleLabelDoubleClick = (handleId: string) => {
+		const newLabel = window.prompt('Enter label for handle');
+		if (newLabel !== null) {
+			setNodes((nds) => {
+				const updated = nds.map((n) =>
+					n.id === id
+						? {
+								...n,
+								data: {
+									...n.data,
+									handleLabels: {
+										...n.data.handleLabels,
+										[handleId]: newLabel,
+									},
+								},
+						  }
+						: n
+				);
+				saveNodes(updated);
+				return updated;
+			});
+		}
+	};
 
 	const [showComments, setShowComments] = useState(false);
 	const [commentValue, setCommentValue] = useState('');
 	const toggleComments = () => setShowComments((prev) => !prev);
+	const [expanded, setExpanded] = useState(false);
+	const toggleExpanded = () => setExpanded((prev) => !prev);
 	const handleUpvote = () => {
 		setNodes((nds) => {
 			const updated = nds.map((n) =>
@@ -115,6 +146,7 @@ function FeatureNodeComponent({
 		done: 'bg-green-500',
 		planned: 'bg-yellow-500',
 		backlog: 'bg-gray-400',
+		'in progress': 'bg-blue-500',
 	};
 
 	// When selected, add an outer ring highlight without affecting inner layout
@@ -160,9 +192,7 @@ function FeatureNodeComponent({
 						{title}
 					</h3>
 				)}
-				<span
-					className={`inline-block h-2 w-2 rounded-full ${statusColor[status]}`}
-				/>
+				<Badge className={statusColor[status]}>{status}</Badge>
 			</div>
 			{editingDescription ? (
 				<textarea
@@ -201,26 +231,49 @@ function FeatureNodeComponent({
 			)}
 			<div className='flex items-center justify-between text-[11px] text-gray-500'>
 				<button
-					onClick={handleUpvote}
+					onClick={toggleExpanded}
 					className='flex items-center gap-1'
-					aria-label='Upvote feature'
-					title='Upvote'>
-					👍 {upvotes}
-				</button>
-				<button
-					onClick={toggleComments}
-					className='flex items-center gap-1'
-					aria-label='Toggle comments'
+					aria-label='Expand details'
 					tabIndex={0}
 					onKeyDown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
-							toggleComments();
+							toggleExpanded();
 						}
 					}}>
-					💬 {comments.length}
+					<ChevronDown size={14} aria-hidden='true' />
+					Expand Details
 				</button>
+				<div className='flex items-center gap-2'>
+					<button
+						onClick={handleUpvote}
+						className='flex items-center gap-1'
+						aria-label='Upvote feature'
+						title='Upvote'>
+						👍 {upvotes}
+					</button>
+					<button
+						onClick={toggleComments}
+						className='flex items-center gap-1'
+						aria-label='Toggle comments'
+						tabIndex={0}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleComments();
+							}
+						}}>
+						💬 {comments.length}
+					</button>
+				</div>
 			</div>
+			{expanded && (
+				<div className='mt-2 text-xs text-gray-700'>
+					<ReactMarkdown remarkPlugins={[remarkGfm]}>
+						{data.details || 'No details provided.'}
+					</ReactMarkdown>
+				</div>
+			)}
 			{showComments && (
 				<div className='mt-2 space-y-1'>
 					{comments.map((c) => (
@@ -257,14 +310,34 @@ function FeatureNodeComponent({
 				id='left'
 				type='target'
 				position={Position.Left}
-				className='w-3 !bg-indigo-500'
-			/>
+				className='w-3 !bg-indigo-500 relative flex items-center justify-center'
+				onDoubleClick={() => handleLabelDoubleClick('left')}
+				tabIndex={0}
+				onKeyDown={(e) => {
+					if (e.key === 'Enter') handleLabelDoubleClick('left');
+				}}>
+				{data.handleLabels?.['left'] && (
+					<span className='absolute -left-8 bg-white text-xs text-gray-700 px-1 rounded'>
+						{data.handleLabels['left']}
+					</span>
+				)}
+			</Handle>
 			<Handle
 				id='right'
 				type='source'
 				position={Position.Right}
-				className='w-3 !bg-indigo-500'
-			/>
+				className='w-3 !bg-indigo-500 relative flex items-center justify-center'
+				onDoubleClick={() => handleLabelDoubleClick('right')}
+				tabIndex={0}
+				onKeyDown={(e) => {
+					if (e.key === 'Enter') handleLabelDoubleClick('right');
+				}}>
+				{data.handleLabels?.['right'] && (
+					<span className='absolute -right-8 bg-white text-xs text-gray-700 px-1 rounded'>
+						{data.handleLabels['right']}
+					</span>
+				)}
+			</Handle>
 		</div>
 	);
 }
