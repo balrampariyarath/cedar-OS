@@ -190,6 +190,74 @@ export const ChatInput: React.FC<{
 			}),
 			// Use external suggestion configuration for mentions with custom React node view
 			Mention.extend({
+				addAttributes() {
+					return {
+						id: {
+							default: null,
+							parseHTML: (element) => element.getAttribute('data-id'),
+							renderHTML: (attributes) => {
+								if (!attributes.id) {
+									return {};
+								}
+								return {
+									'data-id': attributes.id,
+								};
+							},
+						},
+						label: {
+							default: null,
+							parseHTML: (element) => element.getAttribute('data-label'),
+							renderHTML: (attributes) => {
+								if (!attributes.label) {
+									return {};
+								}
+								return {
+									'data-label': attributes.label,
+								};
+							},
+						},
+						// Add custom attributes
+						providerId: {
+							default: null,
+							parseHTML: (element) => element.getAttribute('data-provider-id'),
+							renderHTML: (attributes) => {
+								if (!attributes.providerId) {
+									return {};
+								}
+								return {
+									'data-provider-id': attributes.providerId,
+								};
+							},
+						},
+						contextKey: {
+							default: null,
+							parseHTML: (element) => element.getAttribute('data-context-key'),
+							renderHTML: (attributes) => {
+								if (!attributes.contextKey) {
+									return {};
+								}
+								return {
+									'data-context-key': attributes.contextKey,
+								};
+							},
+						},
+						contextEntryId: {
+							default: null,
+							parseHTML: (element) =>
+								element.getAttribute('data-context-entry-id'),
+							renderHTML: (attributes) => {
+								if (!attributes.contextEntryId) {
+									return {};
+								}
+								return {
+									'data-context-entry-id': attributes.contextEntryId,
+								};
+							},
+						},
+						// Removed metadata and data attributes to avoid circular JSON errors
+						// Icons and colors are retrieved from the provider when rendering
+					};
+				},
 				addNodeView() {
 					return ReactNodeViewRenderer(MentionNodeView);
 				},

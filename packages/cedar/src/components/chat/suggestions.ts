@@ -119,8 +119,6 @@ const mentionSuggestion = {
 						providerId: provider.id,
 						contextKey: contextKey,
 						contextEntryId: contextEntry.id,
-						metadata: item.metadata, // Add metadata to pass icon and color through
-						data: item.data, // Also pass data for custom renderers
 					},
 				},
 				{

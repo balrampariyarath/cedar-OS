@@ -6,7 +6,6 @@ import { useCedarStore } from '@/store/CedarStore';
 
 export const MentionNodeView = ({ node }: { node: any }) => {
 	const providers = useMentionProvidersByTrigger('@');
-	const mentionProviders = useCedarStore((s) => s.mentionProviders);
 
 	// Find the provider that created this mention
 	const provider = node.attrs.providerId
@@ -34,8 +33,10 @@ export const MentionNodeView = ({ node }: { node: any }) => {
 	const providerWithConfig = node.attrs.providerId
 		? (providers.find((p) => p.id === node.attrs.providerId) as any)
 		: null;
-	const icon = providerWithConfig?.icon || node.attrs.metadata?.icon;
-	const color = providerWithConfig?.color || node.attrs.metadata?.color;
+
+	// Always get icon and color from the provider, not from node.attrs
+	const icon = providerWithConfig?.icon;
+	const color = providerWithConfig?.color;
 
 	// Apply color with 50% opacity if provided, otherwise use default blue
 	const bgStyle = color
@@ -45,9 +46,9 @@ export const MentionNodeView = ({ node }: { node: any }) => {
 	return (
 		<NodeViewWrapper className='inline'>
 			<span
-				className='rounded-sm px-1 py-0.5 inline-flex items-center gap-1'
+				className='rounded-sm px-1 py-0.5 inline-flex items-center gap-0.5'
 				style={bgStyle}>
-				{icon ? withClassName(icon, 'w-3 h-3') : '@'}
+				{icon ? withClassName(icon, 'w-4 h-4') : '@'}
 				{node.attrs.label}
 			</span>
 		</NodeViewWrapper>
