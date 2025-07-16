@@ -1,62 +1,36 @@
-import { computePosition, flip, shift } from '@floating-ui/dom';
-import { posToDOMRect, ReactRenderer } from '@tiptap/react';
-import { Editor } from '@tiptap/core';
-import MentionList from '@/components/chat/MentionList';
+import { ReactRenderer } from '@tiptap/react';
+import tippy from 'tippy.js';
+import MentionList from './MentionList';
+import type { MentionItem } from '@/store/agentInputContext/types';
+import { useCedarStore } from '@/store/CedarStore';
 
-export interface SuggestionItem {
-	id: string;
-	label: string;
-}
-
-// Default mention items
-const defaultMentionItems: SuggestionItem[] = [
-	{ id: '1', label: 'Alice' },
-	{ id: '2', label: 'Bob' },
-	{ id: '3', label: 'Charlie' },
-];
-
-// Position the popup under the cursor
-const updatePosition = (editor: Editor, element: HTMLElement) => {
-	const virtualElement = {
-		getBoundingClientRect: () =>
-			posToDOMRect(
-				editor.view,
-				editor.state.selection.from,
-				editor.state.selection.to
-			),
-	};
-
-	computePosition(virtualElement, element, {
-		placement: 'bottom-start',
-		strategy: 'absolute',
-		middleware: [shift(), flip()],
-	}).then(({ x, y, strategy }) => {
-		element.style.width = 'max-content';
-		element.style.position = strategy;
-		element.style.left = `${x}px`;
-		element.style.top = `${y}px`;
-	});
-};
-
-// Export a single mention suggestion config
 const mentionSuggestion = {
-	char: '@',
-	startOfLine: false,
-	items: ({ query }: { query: string }) =>
-		defaultMentionItems
-			.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
-			.slice(0, 5),
-	command: ({ editor, range, props }: any) => {
-		editor
-			.chain()
-			.focus()
-			.insertContentAt(range, [
-				{ type: 'mention', attrs: { id: props.id, label: props.label } },
-			])
-			.run();
+	items: async ({ query }: { query: string }) => {
+		// Get providers for @ trigger
+		const providers = useCedarStore
+			.getState()
+			.getMentionProvidersByTrigger('@');
+
+		// Collect items from all providers
+		const allItems: Array<MentionItem & { providerId: string }> = [];
+
+		for (const provider of providers) {
+			const items = await provider.getItems(query);
+			// Add provider ID to each item
+			allItems.push(
+				...items.map((item) => ({
+					...item,
+					providerId: provider.id,
+				}))
+			);
+		}
+
+		return allItems;
 	},
+
 	render: () => {
 		let component: ReactRenderer;
+		let popup: any;
 
 		return {
 			onStart: (props: any) => {
@@ -69,44 +43,90 @@ const mentionSuggestion = {
 					return;
 				}
 
-				const el = component.element as HTMLElement;
-				el.style.position = 'absolute';
-				document.body.appendChild(el);
-				updatePosition(props.editor, el);
+				popup = tippy('body', {
+					getReferenceClientRect: props.clientRect,
+					appendTo: () => document.body,
+					content: component.element,
+					showOnCreate: true,
+					interactive: true,
+					trigger: 'manual',
+					placement: 'bottom-start',
+				});
 			},
 
-			onUpdate: (props: any) => {
+			onUpdate(props: any) {
 				component.updateProps(props);
 
 				if (!props.clientRect) {
 					return;
 				}
 
-				updatePosition(props.editor, component.element as HTMLElement);
+				popup[0].setProps({
+					getReferenceClientRect: props.clientRect,
+				});
 			},
 
-			onKeyDown: (props: any) => {
-				const { event } = props;
-
-				if (event.key === 'Escape') {
-					component.destroy();
-					event.preventDefault();
-					event.stopPropagation();
+			onKeyDown(props: any) {
+				if (props.event.key === 'Escape') {
+					popup[0].hide();
 					return true;
 				}
 
-				const handled = (component.ref as any)?.onKeyDown(props);
-				if (handled) {
-					event.preventDefault();
-					event.stopPropagation();
-				}
-				return handled;
+				return (component.ref as any)?.onKeyDown(props);
 			},
 
-			onExit: () => {
+			onExit() {
+				popup[0].destroy();
 				component.destroy();
 			},
 		};
+	},
+
+	command: ({ editor, range, props }: any) => {
+		const item = props as MentionItem & { providerId: string };
+
+		// Get the provider that created this item
+		const provider = useCedarStore
+			.getState()
+			.getMentionProvidersByTrigger('@')
+			.find((p: any) => p.id === item.providerId);
+
+		if (!provider) {
+			console.warn('No provider found for item:', item);
+			return;
+		}
+
+		// Create context entry
+		const contextEntry = provider.toContextEntry(item);
+
+		// For state-based providers, the context key is the provider ID (which is the stateKey)
+		const contextKey = provider.id;
+
+		// Add to additional context
+		const state = useCedarStore.getState();
+		state.addContextEntry(contextKey, contextEntry);
+
+		// Insert mention with provider ID and context info
+		editor
+			.chain()
+			.focus()
+			.insertContentAt(range, [
+				{
+					type: 'mention',
+					attrs: {
+						id: item.id,
+						label: item.label,
+						providerId: provider.id,
+						contextKey: contextKey,
+						contextEntryId: contextEntry.id,
+					},
+				},
+				{
+					type: 'text',
+					text: ' ',
+				},
+			])
+			.run();
 	},
 };
 

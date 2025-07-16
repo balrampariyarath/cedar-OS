@@ -1,18 +1,56 @@
+import { NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
-import { NodeViewProps, NodeViewWrapper } from '@tiptap/react';
+import { useMentionProvidersByTrigger } from '@/store/agentInputContext/mentionProviders';
+import { withClassName } from '@/styles/stylingUtils';
+import { useCedarStore } from '@/store/CedarStore';
 
-export const MentionNodeView: React.FC<NodeViewProps> = ({ node }) => {
-	const { id, label } = node.attrs || {};
+export const MentionNodeView = ({ node }: { node: any }) => {
+	const providers = useMentionProvidersByTrigger('@');
+
+	// Find the provider that created this mention
+	const provider = node.attrs.providerId
+		? providers.find((p) => p.id === node.attrs.providerId)
+		: null;
+
+	// If provider has custom renderer, use it
+	if (provider?.renderEditorItem) {
+		const item = {
+			id: node.attrs.id,
+			label: node.attrs.label,
+			data: node.attrs.data,
+			metadata: node.attrs.metadata,
+		};
+
+		return (
+			<NodeViewWrapper className='inline'>
+				{provider.renderEditorItem(item, node.attrs)}
+			</NodeViewWrapper>
+		);
+	}
+
+	// Get the provider configuration which includes icon and color
+	// The provider itself has icon and color properties
+	const providerWithConfig = node.attrs.providerId
+		? (providers.find((p) => p.id === node.attrs.providerId) as any)
+		: null;
+
+	// Always get icon and color from the provider, not from node.attrs
+	const icon = providerWithConfig?.icon;
+	const color = providerWithConfig?.color;
+
+	// Apply color with 50% opacity if provided, otherwise use default blue
+	const bgStyle = color
+		? { backgroundColor: `${color}80` } // 80 in hex = 50% opacity
+		: { backgroundColor: 'rgba(30, 64, 175, 0.5)' }; // Default blue with 50% opacity
 
 	return (
-		<NodeViewWrapper
-			as='span'
-			className='bg-blue-100 text-blue-800 px-1 rounded mention inline-flex items-center'
-			contentEditable={false}
-			data-mention-id={id}
-			aria-label={`Mention ${label}`}
-			tabIndex={0}>
-			@{label}
+		<NodeViewWrapper className='inline'>
+			<span
+				className='rounded-sm px-1 py-0.5 inline-flex items-center gap-0.5'
+				style={bgStyle}>
+				{icon ? withClassName(icon, 'w-4 h-4') : '@'}
+				{node.attrs.label}
+			</span>
 		</NodeViewWrapper>
 	);
 };

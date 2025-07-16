@@ -1,5 +1,6 @@
-import { ClassValue, clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { cloneElement, isValidElement, type ReactNode } from 'react';
 
 /**
  * Combines class names with Tailwind's merge utility
@@ -81,4 +82,17 @@ function isLightColor(color: string): boolean {
  */
 export function getTextColorForBackground(backgroundColor: string): string {
 	return isLightColor(backgroundColor) ? '#000000' : '#ffffff';
+}
+
+/**
+ * Adds className to a React element if it's a valid element
+ * Otherwise returns the node as-is
+ */
+export function withClassName(node: ReactNode, className: string): ReactNode {
+	if (isValidElement(node)) {
+		return cloneElement(node, {
+			className: cn(node.props.className, className),
+		} as any);
+	}
+	return node;
 }

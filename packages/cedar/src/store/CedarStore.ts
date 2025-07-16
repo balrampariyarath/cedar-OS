@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createChatInputSlice } from './chatInputSlice';
+import { createAgentInputContextSlice } from '@/store/agentInputContext/agentInputContextSlice';
 import { createChatSlice } from './chatSlice';
 import { createStylingSlice } from './stylingSlice';
 import { CedarStore } from './types';
@@ -11,7 +11,7 @@ export const useCedarStore = create<CedarStore>()(
 	persist(
 		(...a) => ({
 			...createStylingSlice(...a),
-			...createChatInputSlice(...a),
+			...createAgentInputContextSlice(...a),
 			...createChatSlice(...a),
 			...createStateSlice(...a),
 		}),
