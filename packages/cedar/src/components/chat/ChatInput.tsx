@@ -1,5 +1,7 @@
 import KeyboardShortcut from '@/components/KeyboardShortcut';
 import { useCedarStore, useChatInput } from '@/store/CedarStore';
+import type { CedarStore } from '@/store/types';
+import { renderAdditionalContext } from '@/store/agentInputContext/agentInputContextSlice';
 import Document from '@tiptap/extension-document';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
@@ -14,6 +16,9 @@ import Container3DButton from '@/components/containers/Container3DButton';
 import Mention from '@tiptap/extension-mention';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { MentionNodeView } from './ChatMention';
+import type { ContextEntry } from '@/store/agentInputContext/types';
+import { X } from 'lucide-react';
+import { cn, withClassName } from '@/styles/stylingUtils';
 
 // Define interfaces for ChatInput types based on usage
 interface ChoiceInput {
@@ -73,7 +78,7 @@ export const ChatInput: React.FC<{
 	isInputFocused: boolean;
 	onSubmit?: (input: string) => void;
 }> = ({ position, handleFocus, handleBlur, isInputFocused, onSubmit }) => {
-	const nextMessage = useCedarStore((state) => state.nextMessage);
+	const nextMessage = useCedarStore((state: CedarStore) => state.nextMessage);
 	const {
 		chatInputContent,
 		overrideInputContent,
@@ -81,6 +86,94 @@ export const ChatInput: React.FC<{
 		setOverrideInputContent,
 	} = useChatInput();
 	const [isEditorEmpty, setIsEditorEmpty] = useState(true);
+	const removeContextEntry = useCedarStore((s) => s.removeContextEntry);
+	const mentionProviders = useCedarStore((s) => s.mentionProviders);
+
+	const handleContextClick = () => {
+		editor?.commands.focus();
+		handleFocus();
+	};
+
+	const renderContextBadge = (key: string, entry: ContextEntry) => {
+		// Try to find a provider that might have created this entry
+		// For state-based providers, the provider ID is the context key
+		const provider = mentionProviders.get(key);
+
+		// Use custom renderer if available
+		if (provider?.renderContextBadge) {
+			return provider.renderContextBadge(entry);
+		}
+
+		// Get the label - for selectedNodes, use the title from data
+		const label =
+			key === 'selectedNodes' && entry.data?.data?.title
+				? entry.data.data.title
+				: entry.metadata?.label || entry.id;
+
+		// Get color from metadata and apply 20% opacity
+		const color = entry.metadata?.color;
+		const bgStyle = color ? { backgroundColor: `${color}33` } : {}; // 33 in hex = 20% opacity
+
+		return (
+			<div
+				key={entry.id}
+				className={`px-2 py-1 border text-xs rounded-sm cursor-pointer flex items-center gap-1 whitespace-nowrap hover:border-opacity-80 hover:text-opacity-80 group`}
+				style={bgStyle}
+				tabIndex={0}
+				aria-label={`Selected ${key} ${label}`}
+				onClick={() => {
+					if (entry.source === 'mention') {
+						removeContextEntry(key, entry.id);
+						// Also remove the mention from the editor
+						if (editor) {
+							const { state } = editor;
+							const { doc, tr } = state;
+							let found = false;
+
+							doc.descendants((node, pos) => {
+								if (
+									node.type.name === 'mention' &&
+									node.attrs.contextEntryId === entry.id
+								) {
+									tr.delete(pos, pos + node.nodeSize);
+									found = true;
+									return false;
+								}
+							});
+
+							if (found) {
+								editor.view.dispatch(tr);
+							}
+						}
+					}
+				}}>
+				{entry.metadata?.icon && entry.source === 'mention' && (
+					<>
+						<span className='flex-shrink-0 group-hover:hidden'>
+							{withClassName(entry.metadata.icon, 'w-3 h-3')}
+						</span>
+						<X className='w-3 h-3 flex-shrink-0 hidden group-hover:block' />
+					</>
+				)}
+				{entry.metadata?.icon && entry.source !== 'mention' && (
+					<span className='flex-shrink-0'>
+						{withClassName(entry.metadata.icon, 'w-3 h-3')}
+					</span>
+				)}
+				{!entry.metadata?.icon && entry.source === 'mention' && (
+					<X className='w-3 h-3 flex-shrink-0 hidden group-hover:block' />
+				)}
+				<span>{label}</span>
+			</div>
+		);
+	};
+
+	const contextElements = renderAdditionalContext({
+		nodes: (entry: ContextEntry) => renderContextBadge('nodes', entry),
+		edges: (entry: ContextEntry) => renderContextBadge('edges', entry),
+		selectedNodes: (entry: ContextEntry) =>
+			renderContextBadge('selectedNodes', entry),
+	});
 
 	const editor = useEditor({
 		extensions: [
@@ -99,6 +192,45 @@ export const ChatInput: React.FC<{
 			Mention.extend({
 				addNodeView() {
 					return ReactNodeViewRenderer(MentionNodeView);
+				},
+				addStorage() {
+					return {
+						mentionNodes: new Map(),
+					};
+				},
+				onUpdate() {
+					// Track mentions in the document
+					const currentMentions = new Map<
+						string,
+						{ contextKey: string; node: any }
+					>();
+					const { doc } = this.editor.state;
+
+					doc.descendants((node: any, pos: number) => {
+						if (node.type.name === 'mention' && node.attrs.contextEntryId) {
+							currentMentions.set(node.attrs.contextEntryId, {
+								contextKey: node.attrs.contextKey,
+								node,
+							});
+						}
+					});
+
+					// Find deleted mentions
+					const previousMentions = this.storage?.mentionNodes || new Map();
+					previousMentions.forEach(
+						(value: { contextKey: string }, contextEntryId: string) => {
+							if (!currentMentions.has(contextEntryId)) {
+								// Mention was deleted, remove from context
+								const state = useCedarStore.getState();
+								state.removeContextEntry(value.contextKey, contextEntryId);
+							}
+						}
+					);
+
+					// Update storage
+					if (this.storage) {
+						this.storage.mentionNodes = currentMentions;
+					}
 				},
 			}).configure({
 				suggestion: mentionSuggestion,
@@ -255,15 +387,18 @@ export const ChatInput: React.FC<{
 	}, [isInputFocused, editor]);
 
 	return (
-		<ChatInputContainer position={position} className='p-2'>
-			{/* Input context row - empty placeholder */}
-			<div id='input-context' className='flex items-center text-sm'>
-				<div>@</div>
+		<ChatInputContainer position={position} className='p-2 text-sm'>
+			{/* Input context row showing selected context nodes */}
+			<div
+				id='input-context'
+				className='flex items-center gap-2 flex-wrap mb-1 p-1'>
+				<div className='flex-shrink-0'>@</div>
+				{contextElements}
 			</div>
 
 			{/* Chat editor row */}
 			<div className='relative w-full h-fit' id='cedar-chat-input'>
-				<div className='flex items-center text-sm'>
+				<div className='flex items-center'>
 					{editor && !editor.isFocused && (
 						<div className='flex items-center flex-shrink-0 mr-2'>
 							<KeyboardShortcut shortcut='Tab to type' />

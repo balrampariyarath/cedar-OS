@@ -1,5 +1,5 @@
 import { StateSlice } from '@/store/stateSlice/stateSlice';
-import { ChatInputSlice } from './chatInputSlice';
+import { AgentInputContextSlice } from '@/store/agentInputContext/agentInputContextSlice';
 import { ChatSlice } from './chatSlice';
 import { StylingConfig, StylingSlice } from './stylingSlice';
 
@@ -8,7 +8,7 @@ import { StylingConfig, StylingSlice } from './stylingSlice';
  */
 export interface CedarStore
 	extends StylingSlice,
-		ChatInputSlice,
+		AgentInputContextSlice,
 		ChatSlice,
 		StateSlice {}
 

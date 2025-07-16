@@ -30,8 +30,15 @@ import {
 	getNodes,
 	saveNodes,
 } from '@/app/examples/product-roadmap/supabase/nodes';
-import { ChatInput, registerState } from 'cedar';
-import { CheckCircle, Loader } from 'lucide-react';
+import {
+	ChatInput,
+	registerState,
+	useStateBasedMentionProvider,
+	subscribeInputContext,
+	type MentionItem,
+	type ContextEntry,
+} from 'cedar';
+import { CheckCircle, Loader, Box, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // -----------------------------------------------------------------------------
@@ -140,6 +147,33 @@ function FlowCanvas() {
 		description: 'Product roadmap edges',
 	});
 
+	// Register mention provider for nodes
+	useStateBasedMentionProvider({
+		stateKey: 'nodes',
+		trigger: '@',
+		labelField: (node: Node<FeatureNodeData>) => node.data.title,
+		searchFields: ['data.description'],
+		description: 'Product roadmap features',
+		icon: <Box />,
+		color: '#3B82F6', // Blue color
+	});
+
+	// Register mention provider for edges
+	useStateBasedMentionProvider({
+		stateKey: 'edges',
+		trigger: '@',
+		labelField: (edge: Edge) => {
+			const sourceNode = nodes.find((n) => n.id === edge.source);
+			const targetNode = nodes.find((n) => n.id === edge.target);
+			const sourceTitle = sourceNode?.data.title || edge.source;
+			const targetTitle = targetNode?.data.title || edge.target;
+			return `${sourceTitle} → ${targetTitle}`;
+		},
+		description: 'Product roadmap connections',
+		icon: <ArrowRight />,
+		color: '#10B981', // Green color
+	});
+
 	// Fetch initial data
 	React.useEffect(() => {
 		getNodes().then(setNodes);
@@ -235,6 +269,19 @@ function FlowCanvas() {
 
 function SelectedNodesPanel() {
 	const [selected, setSelected] = React.useState<Node<FeatureNodeData>[]>([]);
+
+	// whenever `selected` changes, it'll be merged into store.additionalContext
+	// Update to use 'nodes' key to match what mention provider uses
+	subscribeInputContext(
+		selected,
+		(nodes: Node<FeatureNodeData>[]) => ({
+			selectedNodes: nodes,
+		}),
+		{
+			icon: <Box />,
+			color: '#8B5CF6', // Purple color for selected nodes
+		}
+	);
 
 	useOnSelectionChange({
 		onChange: ({ nodes }: { nodes: Node<FeatureNodeData>[] }) =>
