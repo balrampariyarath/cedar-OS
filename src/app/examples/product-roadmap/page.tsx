@@ -311,7 +311,7 @@ function SelectedNodesPanel() {
 export default function ProductMapPage() {
 	return (
 		<ReactFlowProvider>
-			<div className='relative h-[calc(100vh-60px)] w-full'>
+			<div className='relative h-screen w-full'>
 				<FlowCanvas />
 				<SelectedNodesPanel />
 			</div>

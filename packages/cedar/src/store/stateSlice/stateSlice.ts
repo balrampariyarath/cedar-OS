@@ -27,17 +27,20 @@ export interface SetterParameter {
 export type BaseSetter<T = BasicStateValue> = (state: T) => void;
 
 // A setter function that takes an input value and the current state to produce updates
-export type SetterFunction<T = BasicStateValue> = (
-	state: T,
-	inputValue?: unknown
-) => void;
+export type SetterFunction<
+	T = BasicStateValue,
+	Args extends unknown[] = unknown[]
+> = (state: T, ...args: Args) => void;
 
 // Setter object that includes both metadata and execution function
-export interface Setter<T = BasicStateValue> {
+export interface Setter<
+	T = BasicStateValue,
+	Args extends unknown[] = unknown[]
+> {
 	name: string;
 	description: string;
 	parameters?: SetterParameter[];
-	execute: SetterFunction<T>;
+	execute: SetterFunction<T, Args>;
 }
 
 // Represents a single registered state with separate primary setter and additional custom setters
@@ -80,8 +83,25 @@ export interface StateSlice {
 
 	// Method to add custom setters to an existing state
 	addCustomSetters: (key: string, setters: Record<string, Setter>) => boolean;
+	/**
+	 * Execute a named custom setter for a state.
+	 * @param key The state key.
+	 * @param setterKey The custom setter key.
+	 * @param args Arguments to pass to the custom setter.
+	 */
+	executeCustomSetter: (
+		key: string,
+		setterKey: string,
+		...args: unknown[]
+	) => void;
 	/** Retrieves the stored value for a given state key */
 	getCedarState: (key: string) => BasicStateValue | undefined;
+	/**
+	 * Set a registered state value and call its external setter if provided.
+	 * @param key The state key.
+	 * @param value The new value to set.
+	 */
+	setCedarState: <T extends BasicStateValue>(key: string, value: T) => void;
 }
 
 // Create the registered state slice
@@ -116,12 +136,9 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 				}));
 				return;
 			}
+
 			// Initial registration of a new state
 			set((state) => {
-				// Extract primary setter and custom setters
-				const primarySetter = config.setValue;
-				const namedSetters = config.customSetters;
-
 				// Create the state object
 				const registeredState: registeredState<T> = {
 					key: config.key,
@@ -129,8 +146,8 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 					description: config.description,
 					schema: config.schema,
 					// Primary updater separate from namedSetters
-					setValue: primarySetter,
-					customSetters: namedSetters,
+					setValue: config.setValue,
+					customSetters: config.customSetters,
 				};
 
 				// Return updated state with the new/replaced registered state
@@ -150,6 +167,39 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 		getCedarState: (key: string) => {
 			const record = get().registeredStates[key];
 			return record?.value;
+		},
+		/**
+		 * Set a registered state value and call its external setter if provided.
+		 * @param key The state key.
+		 * @param value The new value to set.
+		 */
+		setCedarState: <T extends BasicStateValue>(key: string, value: T) => {
+			const existingState = get().registeredStates[key];
+			if (!existingState) {
+				console.warn(`State with key "${key}" not found.`);
+				return;
+			}
+			// Update stored value
+			set(
+				(state) =>
+					({
+						registeredStates: {
+							...state.registeredStates,
+							[key]: {
+								...state.registeredStates[key],
+								value,
+							},
+						},
+					} as Partial<CedarStore>)
+			);
+			// Call external setter if provided
+			if (existingState.setValue) {
+				try {
+					existingState.setValue(value);
+				} catch (error) {
+					console.warn(`Error calling external setter for "${key}"`, error);
+				}
+			}
 		},
 
 		// Add custom setters to an existing state
@@ -202,6 +252,29 @@ export const createStateSlice: StateCreator<CedarStore, [], [], StateSlice> = (
 			);
 
 			return true;
+		},
+		/**
+		 * Execute a named custom setter for a registered state.
+		 */
+		executeCustomSetter: (
+			key: string,
+			setterKey: string,
+			...args: unknown[]
+		) => {
+			const existingState = get().registeredStates[key];
+			if (!existingState) {
+				console.warn(`State with key "${key}" not found.`);
+				return;
+			}
+			const setters = existingState.customSetters;
+			if (!setters || !setters[setterKey]) {
+				console.warn(
+					`Custom setter "${setterKey}" not found for state "${key}".`
+				);
+				return;
+			}
+			const setter = setters[setterKey];
+			setter.execute(existingState.value, ...args);
 		},
 	};
 };

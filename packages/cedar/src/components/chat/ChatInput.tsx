@@ -1,5 +1,5 @@
 import KeyboardShortcut from '@/components/KeyboardShortcut';
-import { useCedarStore, useChatInput } from '@/store/CedarStore';
+import { setCedarState, useCedarStore, useChatInput } from '@/store/CedarStore';
 import type { CedarStore } from '@/store/types';
 import { renderAdditionalContext } from '@/store/agentInputContext/agentInputContextSlice';
 import Document from '@tiptap/extension-document';
@@ -8,7 +8,7 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Bold, Code, Italic, SendHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 import mentionSuggestion from '@/components/chat/suggestions';
 import Container3D from '@/components/containers/Container3D';
@@ -46,9 +46,7 @@ export const ChatInputContainer: React.FC<ChatContainerProps> = ({
 	children,
 	position = 'bottom-center',
 	className = '',
-	color,
 	style,
-	motionProps,
 }) => {
 	// Determine className based on position
 	const positionClasses = {
@@ -59,13 +57,9 @@ export const ChatInputContainer: React.FC<ChatContainerProps> = ({
 	};
 
 	return (
-		<Container3D
-			className={`${positionClasses[position]} ${className}`}
-			color={color}
-			style={style}
-			motionProps={motionProps}>
+		<div className={`${positionClasses[position]} ${className}`} style={style}>
 			{children}
-		</Container3D>
+		</div>
 	);
 };
 
@@ -88,6 +82,7 @@ export const ChatInput: React.FC<{
 	const [isEditorEmpty, setIsEditorEmpty] = useState(true);
 	const removeContextEntry = useCedarStore((s) => s.removeContextEntry);
 	const mentionProviders = useCedarStore((s) => s.mentionProviders);
+	const additionalContext = useCedarStore((s) => s.additionalContext);
 
 	const handleContextClick = () => {
 		editor?.commands.focus();
@@ -167,13 +162,6 @@ export const ChatInput: React.FC<{
 			</div>
 		);
 	};
-
-	const contextElements = renderAdditionalContext({
-		nodes: (entry: ContextEntry) => renderContextBadge('nodes', entry),
-		edges: (entry: ContextEntry) => renderContextBadge('edges', entry),
-		selectedNodes: (entry: ContextEntry) =>
-			renderContextBadge('selectedNodes', entry),
-	});
 
 	const editor = useEditor({
 		extensions: [
@@ -304,7 +292,7 @@ export const ChatInput: React.FC<{
 				suggestion: mentionSuggestion,
 			}),
 		],
-		content: '',
+		content: chatInputContent || '',
 		editable: true,
 		onFocus: () => {
 			// Call handleFocus to update isInputFocused in parent
@@ -368,13 +356,13 @@ export const ChatInput: React.FC<{
 	}, [editor, overrideInputContent]);
 
 	// Sync store chatInputContent to editor when no override is active
-	useEffect(() => {
-		if (!editor || overrideInputContent?.input) return;
-		if (chatInputContent) {
-			editor.commands.setContent(chatInputContent);
-			setIsEditorEmpty(editor.isEmpty);
-		}
-	}, [editor, chatInputContent, overrideInputContent]);
+	// useEffect(() => {
+	// 	if (!editor || overrideInputContent?.input) return;
+	// 	if (chatInputContent) {
+	// 		editor.commands.setContent(chatInputContent);
+	// 		setIsEditorEmpty(editor.isEmpty);
+	// 	}
+	// }, [editor, chatInputContent, overrideInputContent]);
 
 	// Convert overrideInputContent to editor content
 	const convertoverrideInputContentToEditor = (
@@ -454,79 +442,152 @@ export const ChatInput: React.FC<{
 		}
 	}, [isInputFocused, editor]);
 
+	// Build renderers dynamically from all registered mention providers
+	const contextRenderers = useMemo(() => {
+		// Create a renderers object where each key is a provider ID (stateKey)
+		const renderers: Record<string, (entry: ContextEntry) => React.ReactNode> =
+			{};
+
+		// Add a renderer for each registered mention provider
+		mentionProviders.forEach((provider, providerId) => {
+			renderers[providerId] = (entry: ContextEntry) =>
+				renderContextBadge(providerId, entry);
+		});
+
+		// Also include any legacy hardcoded keys that might not have providers yet
+		// This ensures backward compatibility
+		Object.keys(additionalContext).forEach((key) => {
+			if (!renderers[key]) {
+				renderers[key] = (entry: ContextEntry) =>
+					renderContextBadge(key, entry);
+			}
+		});
+
+		return renderers;
+	}, [mentionProviders, additionalContext]);
+
+	// Use renderAdditionalContext directly with dynamic renderers
+	const contextElements = renderAdditionalContext(contextRenderers);
+
+	const handleSetTemplate = () => {
+		const template = [
+			{
+				id: 'template-1',
+				type: 'featureNode',
+				position: { x: 0, y: 0 },
+				data: {
+					title: 'Template Feature',
+					description: 'This is a template item',
+					upvotes: 0,
+					comments: [],
+					status: 'planned',
+				},
+			},
+		];
+		setCedarState('nodes', template);
+	};
+
 	return (
-		<ChatInputContainer position={position} className='p-2 text-sm'>
-			{/* Input context row showing selected context nodes */}
-			<div
-				id='input-context'
-				className='flex items-center gap-2 flex-wrap mb-1 p-1'>
-				<div className='flex-shrink-0'>@</div>
-				{contextElements}
-			</div>
-
-			{/* Chat editor row */}
-			<div className='relative w-full h-fit' id='cedar-chat-input'>
-				<div className='flex items-center'>
-					{editor && !editor.isFocused && (
-						<div className='flex items-center flex-shrink-0 mr-2'>
-							<KeyboardShortcut shortcut='Tab to type' />
-						</div>
-					)}
-					<motion.div
-						layoutId='chatInput'
-						className='flex-1 justify-center py-3'
-						onKeyDown={handleKeyDown}
-						aria-label='Message input'>
-						<EditorContent
-							editor={editor}
-							className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0  placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:empty:before:content-[attr(data-placeholder)] [&_.ProseMirror]:empty:before:text-gray-400 dark:[&_.ProseMirror]:empty:before:text-gray-500 [&_.ProseMirror]:empty:before:float-left [&_.ProseMirror]:empty:before:pointer-events-none'
-						/>
-					</motion.div>
+		<ChatInputContainer position={position} className='text-sm'>
+			{/* Action buttons row */}
+			<div className='flex justify-between items-center mb-2 font-medium'>
+				<div className='flex space-x-2'>
+					<Container3DButton id='add-feature-btn' childClassName='p-1.5'>
+						<span>Add Feature</span>
+					</Container3DButton>
+					<Container3DButton id='add-issue-btn' childClassName='p-1.5'>
+						<span>Add Issue</span>
+					</Container3DButton>
+				</div>
+				<div className='flex space-x-2'>
+					<Container3DButton id='ask-ai-btn' childClassName='p-1.5'>
+						<span>Ask AI</span>
+					</Container3DButton>
+					<Container3DButton id='settings-btn' childClassName='p-1.5'>
+						<span>Settings</span>
+					</Container3DButton>
+					<Container3DButton
+						id='set-template-btn'
+						childClassName='p-1.5'
+						onClick={handleSetTemplate}>
+						<span>Set Template</span>
+					</Container3DButton>
 				</div>
 			</div>
 
-			{/* Tools and send row */}
-			<div
-				id='input-tools'
-				className='flex items-center  space-x-2  justify-between'>
-				<div>
-					<button
-						type='button'
-						className='p-1 text-gray-400 hover:text-gray-600'>
-						<Bold className='w-4 h-4' />
-					</button>
-					<button
-						type='button'
-						className='p-1 text-gray-400 hover:text-gray-600'>
-						<Italic className='w-4 h-4' />
-					</button>
-					<button
-						type='button'
-						className='p-1 text-gray-400 hover:text-gray-600'>
-						<Code className='w-4 h-4' />
-					</button>
+			<Container3D className='p-2'>
+				{/* Input context row showing selected context nodes */}
+				<div
+					id='input-context'
+					className='flex items-center gap-2 flex-wrap mb-1 p-1'>
+					<div className='flex-shrink-0'>@</div>
+					{contextElements}
 				</div>
-				<Container3DButton
-					id='send-chat'
-					motionProps={{
-						layoutId: 'send-chat',
-						animate: {
-							opacity: isEditorEmpty ? 0.5 : 1,
-							backgroundColor: isEditorEmpty ? '#ffffff' : '#93c5fd',
-						},
-						transition: { type: 'spring', stiffness: 300, damping: 20 },
-					}}
-					onClick={handleSubmit}
-					color={isEditorEmpty ? undefined : '#93c5fd'}
-					className='flex items-center flex-shrink-0 ml-auto -mt-0.5'
-					childClassName='p-1.5'>
-					<motion.div
-						animate={{ rotate: isEditorEmpty ? 0 : -90 }}
-						transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-						<SendHorizontal className='w-4 h-4' />
-					</motion.div>
-				</Container3DButton>
-			</div>
+
+				{/* Chat editor row */}
+				<div className='relative w-full h-fit' id='cedar-chat-input'>
+					<div className='flex items-center'>
+						{editor && !editor.isFocused && (
+							<div className='flex items-center flex-shrink-0 mr-2'>
+								<KeyboardShortcut shortcut='Tab to type' />
+							</div>
+						)}
+						<motion.div
+							layoutId='chatInput'
+							className='flex-1 justify-center py-3'
+							onKeyDown={handleKeyDown}
+							aria-label='Message input'>
+							<EditorContent
+								editor={editor}
+								className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0  placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:empty:before:content-[attr(data-placeholder)] [&_.ProseMirror]:empty:before:text-gray-400 dark:[&_.ProseMirror]:empty:before:text-gray-500 [&_.ProseMirror]:empty:before:float-left [&_.ProseMirror]:empty:before:pointer-events-none'
+							/>
+						</motion.div>
+					</div>
+				</div>
+
+				{/* Tools and send row */}
+				<div
+					id='input-tools'
+					className='flex items-center  space-x-2  justify-between'>
+					<div>
+						<button
+							type='button'
+							className='p-1 text-gray-400 hover:text-gray-600'>
+							<Bold className='w-4 h-4' />
+						</button>
+						<button
+							type='button'
+							className='p-1 text-gray-400 hover:text-gray-600'>
+							<Italic className='w-4 h-4' />
+						</button>
+						<button
+							type='button'
+							className='p-1 text-gray-400 hover:text-gray-600'>
+							<Code className='w-4 h-4' />
+						</button>
+					</div>
+					<Container3DButton
+						id='send-chat'
+						motionProps={{
+							layoutId: 'send-chat',
+							animate: {
+								opacity: isEditorEmpty ? 0.5 : 1,
+								backgroundColor: isEditorEmpty ? '#ffffff' : '#93c5fd',
+							},
+							transition: { type: 'spring', stiffness: 300, damping: 20 },
+						}}
+						onClick={handleSubmit}
+						color={isEditorEmpty ? undefined : '#93c5fd'}
+						className='flex items-center flex-shrink-0 ml-auto -mt-0.5'
+						childClassName='p-1.5'>
+						<motion.div
+							animate={{ rotate: isEditorEmpty ? 0 : -90 }}
+							transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
+							<SendHorizontal className='w-4 h-4' />
+						</motion.div>
+					</Container3DButton>
+				</div>
+			</Container3D>
 		</ChatInputContainer>
 	);
 };

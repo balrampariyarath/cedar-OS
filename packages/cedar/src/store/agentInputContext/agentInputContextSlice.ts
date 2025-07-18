@@ -199,7 +199,6 @@ export function renderAdditionalContext(
 	renderers: Record<string, (entry: ContextEntry) => ReactNode>
 ): ReactNode[] {
 	const additionalContext = useCedarStore((s) => s.additionalContext);
-	const removeContextEntry = useCedarStore((s) => s.removeContextEntry);
 
 	return useMemo(() => {
 		const elements: ReactNode[] = [];

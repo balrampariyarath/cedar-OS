@@ -48,3 +48,11 @@ export const useChatInput = () => ({
 // Export registerState function to allow dynamic state registration
 export const registerState: CedarStore['registerState'] = (config) =>
 	useCedarStore.getState().registerState(config);
+
+// Export getCedarState function for reading state values
+export const getCedarState: CedarStore['getCedarState'] = (key) =>
+	useCedarStore.getState().getCedarState(key);
+
+// Export setCedarState function for updating state values
+export const setCedarState: CedarStore['setCedarState'] = (key, value) =>
+	useCedarStore.getState().setCedarState(key, value);

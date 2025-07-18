@@ -1,4 +1,5 @@
-export { ChatInput } from '@/components/chat/ChatInput';
+// Export components
+export { ChatInput, ChatInputContainer } from '@/components/chat/ChatInput';
 
 export { useCedarStore } from '@/store/CedarStore';
 export { registerState } from '@/store/CedarStore';

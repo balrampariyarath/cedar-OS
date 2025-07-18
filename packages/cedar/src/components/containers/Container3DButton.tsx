@@ -50,7 +50,7 @@ const Container3DButton: React.FC<Container3DButtonProps> = ({
 				id={id}
 				color={color}
 				className={cn(
-					'w-fit rounded-full cursor-pointer inline-flex items-center overflow-hidden button',
+					'w-fit rounded-lg cursor-pointer inline-flex items-center overflow-hidden button',
 					className
 				)}
 				style={style}

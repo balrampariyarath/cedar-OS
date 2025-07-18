@@ -22,7 +22,7 @@ export const MentionNodeView = ({ node }: { node: any }) => {
 		};
 
 		return (
-			<NodeViewWrapper className='inline'>
+			<NodeViewWrapper className='inline' contentEditable={false}>
 				{provider.renderEditorItem(item, node.attrs)}
 			</NodeViewWrapper>
 		);
@@ -44,10 +44,11 @@ export const MentionNodeView = ({ node }: { node: any }) => {
 		: { backgroundColor: 'rgba(30, 64, 175, 0.5)' }; // Default blue with 50% opacity
 
 	return (
-		<NodeViewWrapper className='inline'>
+		<NodeViewWrapper className='inline' contentEditable={false}>
 			<span
-				className='rounded-sm px-1 py-0.5 inline-flex items-center gap-0.5'
-				style={bgStyle}>
+				className='rounded-sm px-1 py-0.5 inline-flex items-center gap-0.5 select-none'
+				style={bgStyle}
+				contentEditable={false}>
 				{icon ? withClassName(icon, 'w-4 h-4') : '@'}
 				{node.attrs.label}
 			</span>
