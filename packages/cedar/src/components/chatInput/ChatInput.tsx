@@ -16,9 +16,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
-import './ChatInput.css';
+import '@/components/chatInput/ChatInput.css';
 import { useCedarEditor } from './useCedarEditor';
 import { ContextBadgeRow } from './ContextBadgeRow';
+import { useChatInput } from '@/store/CedarStore';
 
 // Define interfaces for ChatInput types based on usage
 interface ChoiceInput {
@@ -72,6 +73,7 @@ export const ChatInput: React.FC<{
 	isInputFocused: boolean;
 	onSubmit?: (input: string) => void;
 }> = ({ position, handleFocus, handleBlur, isInputFocused, onSubmit }) => {
+	const { setOverrideInputContent } = useChatInput();
 	const { editor, isEditorEmpty, handleSubmit } = useCedarEditor({
 		onSubmit,
 		onFocus: handleFocus,
@@ -142,6 +144,62 @@ export const ChatInput: React.FC<{
 		executeCustomSetter('nodes', 'addNode', newIssue);
 	};
 
+	const handleTestOverride = () => {
+		// Get selected nodes from additional context
+		const state = useCedarStore.getState();
+		const selectedNodesContext = state.additionalContext.selectedNodes || [];
+
+		if (selectedNodesContext.length === 0) {
+			setOverrideInputContent(
+				'No nodes selected. Please select some nodes first!'
+			);
+			return;
+		}
+
+		// Create TipTap JSON content with mentions
+		const content = {
+			type: 'doc',
+			content: [
+				{
+					type: 'paragraph',
+					content: [
+						{
+							type: 'text',
+							text: 'Selected nodes: ',
+						},
+						...selectedNodesContext.flatMap((entry, index) => {
+							// Get the node title from the entry data
+							const nodeTitle =
+								entry.data?.data?.title || entry.metadata?.label || entry.id;
+
+							const mentionNode = {
+								type: 'mention',
+								attrs: {
+									id: entry.data?.id || entry.id,
+									label: nodeTitle,
+									providerId: 'selectedNodes',
+									contextKey: 'selectedNodes',
+									contextEntryId: entry.id,
+								},
+							};
+
+							// Add space after each mention except the last one
+							if (index < selectedNodesContext.length - 1) {
+								return [mentionNode, { type: 'text', text: ' ' }];
+							}
+							return [mentionNode];
+						}),
+					],
+				},
+			],
+		};
+
+		// Set the editor content using JSON format
+		if (editor) {
+			editor.commands.setContent(content);
+		}
+	};
+
 	return (
 		<ChatInputContainer position={position} className='text-sm'>
 			{/* Action buttons row */}
@@ -163,6 +221,15 @@ export const ChatInput: React.FC<{
 						<span className='flex items-center gap-1'>
 							<Bug className='w-4 h-4' />
 							Add Bug
+						</span>
+					</Container3DButton>
+					<Container3DButton
+						id='test-override-btn'
+						childClassName='p-1.5'
+						onClick={handleTestOverride}>
+						<span className='flex items-center gap-1'>
+							<Code className='w-4 h-4' />
+							Test Override
 						</span>
 					</Container3DButton>
 				</div>

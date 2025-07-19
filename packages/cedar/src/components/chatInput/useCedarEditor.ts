@@ -33,7 +33,6 @@ export const useCedarEditor = (options: UseCedarEditorOptions = {}) => {
 		setOverrideInputContent,
 	} = useChatInput();
 	const [isEditorEmpty, setIsEditorEmpty] = useState(true);
-	const removeContextEntry = useCedarStore((s) => s.removeContextEntry);
 
 	const editor = useEditor({
 		extensions: [
