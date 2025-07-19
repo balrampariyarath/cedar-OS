@@ -1,4 +1,4 @@
-import KeyboardShortcut from '@/components/KeyboardShortcut';
+import KeyboardShortcut from '@/components/ui/KeyboardShortcut';
 import { setCedarState, useCedarStore, useChatInput } from '@/store/CedarStore';
 import type { CedarStore } from '@/store/types';
 import { renderAdditionalContext } from '@/store/agentInputContext/agentInputContextSlice';
@@ -9,6 +9,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Bold, Code, Italic, SendHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { useEffect, useState, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 import mentionSuggestion from '@/components/chat/suggestions';
 import Container3D from '@/components/containers/Container3D';
@@ -472,7 +473,7 @@ export const ChatInput: React.FC<{
 	const handleSetTemplate = () => {
 		const template = [
 			{
-				id: 'template-1',
+				id: uuidv4(),
 				type: 'featureNode',
 				position: { x: 0, y: 0 },
 				data: {
@@ -487,15 +488,57 @@ export const ChatInput: React.FC<{
 		setCedarState('nodes', template);
 	};
 
+	const handleAddFeature = () => {
+		const executeCustomSetter = useCedarStore.getState().executeCustomSetter;
+		const newFeature = {
+			id: uuidv4(),
+			type: 'featureNode',
+			position: { x: Math.random() * 400, y: Math.random() * 400 },
+			data: {
+				title: 'New Feature',
+				description: 'Describe your new feature here',
+				upvotes: 0,
+				comments: [],
+				status: 'planned' as const,
+				nodeType: 'feature' as const,
+			},
+		};
+		executeCustomSetter('nodes', 'addNode', newFeature);
+	};
+
+	const handleAddIssue = () => {
+		const executeCustomSetter = useCedarStore.getState().executeCustomSetter;
+		const newIssue = {
+			id: uuidv4(),
+			type: 'featureNode',
+			position: { x: Math.random() * 400, y: Math.random() * 400 },
+			data: {
+				title: 'New Bug',
+				description: 'Describe the bug here',
+				upvotes: 0,
+				comments: [],
+				status: 'backlog' as const,
+				nodeType: 'bug' as const,
+			},
+		};
+		executeCustomSetter('nodes', 'addNode', newIssue);
+	};
+
 	return (
 		<ChatInputContainer position={position} className='text-sm'>
 			{/* Action buttons row */}
 			<div className='flex justify-between items-center mb-2 font-medium'>
 				<div className='flex space-x-2'>
-					<Container3DButton id='add-feature-btn' childClassName='p-1.5'>
+					<Container3DButton
+						id='add-feature-btn'
+						childClassName='p-1.5'
+						onClick={handleAddFeature}>
 						<span>Add Feature</span>
 					</Container3DButton>
-					<Container3DButton id='add-issue-btn' childClassName='p-1.5'>
+					<Container3DButton
+						id='add-issue-btn'
+						childClassName='p-1.5'
+						onClick={handleAddIssue}>
 						<span>Add Issue</span>
 					</Container3DButton>
 				</div>
@@ -520,7 +563,9 @@ export const ChatInput: React.FC<{
 				<div
 					id='input-context'
 					className='flex items-center gap-2 flex-wrap mb-1 p-1'>
-					<div className='flex-shrink-0'>@</div>
+					<div className='px-2 py-1 border text-xs rounded-sm flex items-center gap-1 whitespace-nowrap bg-gray-50'>
+						<span>@ add context</span>
+					</div>
 					{contextElements}
 				</div>
 

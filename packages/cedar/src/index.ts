@@ -9,6 +9,7 @@ export { createStylingSlice } from '@/store/stylingSlice';
 
 // Export state management
 export { useCedarState } from '@/store/stateSlice/useCedarState';
+export { useRegisterState } from '@/store/stateSlice/stateSlice';
 
 // Export context management
 export {

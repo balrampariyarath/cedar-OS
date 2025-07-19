@@ -15,9 +15,30 @@ type EdgeRow = {
 
 // Fetch edges from Supabase and map to ReactFlow Edge type
 export async function getEdges(): Promise<Edge[]> {
+	// First get all non-deleted node IDs
+	const { data: activeNodes, error: nodesError } = await supabase
+		.from('nodes')
+		.select('id')
+		.eq('deleted', false);
+
+	if (nodesError) throw nodesError;
+
+	if (!activeNodes || activeNodes.length === 0) {
+		return [];
+	}
+
+	const activeNodeIds = activeNodes.map((node) => node.id);
+
+	// Get all edges
 	const { data, error } = await supabase.from('edges').select('*');
 	if (error) throw error;
-	const rows = data as EdgeRow[];
+
+	// Filter edges to only include those connecting active nodes
+	const rows = (data as EdgeRow[]).filter(
+		(edge) =>
+			activeNodeIds.includes(edge.source) && activeNodeIds.includes(edge.target)
+	);
+
 	return rows.map((row) => ({
 		id: row.id,
 		source: row.source,
