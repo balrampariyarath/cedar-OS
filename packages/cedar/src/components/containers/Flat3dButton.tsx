@@ -1,6 +1,6 @@
 import React from 'react';
 import { HTMLMotionProps } from 'motion/react';
-import Flat3dContainer from '@/components/ui/Flat3dContainer';
+import Flat3dContainer from '@/components/containers/Flat3dContainer';
 import { cn } from '@/styles/stylingUtils';
 
 export interface Flat3dButtonProps extends HTMLMotionProps<'div'> {

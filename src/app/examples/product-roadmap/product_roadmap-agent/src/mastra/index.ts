@@ -1,8 +1,300 @@
 import { Mastra } from '@mastra/core/mastra';
-import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
-import { productRoadmapWorkflow } from './workflows/product-roadmap-workflow';
+import { PinoLogger } from '@mastra/loggers';
 import { productRoadmapAgent } from './agents/product-roadmap-agent';
+import { registerApiRoute } from '@mastra/core/server';
+import { z } from 'zod';
+import type { Context } from 'hono';
+
+// Define the chat request schema for Cedar compatibility
+const ChatRequestSchema = z.object({
+	prompt: z.string(), // Cedar sends 'prompt' not 'messages'
+	model: z.string().optional(),
+	temperature: z.number().optional(),
+	maxTokens: z.number().optional(),
+	systemPrompt: z.string().optional(),
+	// For structured output
+	output: z.any().optional(),
+});
+
+// Chat handler - regular text generation
+async function handleChatMessage(c: Context) {
+	try {
+		const body = await c.req.json();
+		const { prompt, temperature, maxTokens, systemPrompt } =
+			ChatRequestSchema.parse(body);
+
+		const agent = c.get('mastra').getAgent('productRoadmapAgent');
+		if (!agent) {
+			return c.json({ error: 'Agent not found' }, 404);
+		}
+
+		// Convert prompt to messages format for the agent
+		const messages = [
+			...(systemPrompt
+				? [{ role: 'system' as const, content: systemPrompt }]
+				: []),
+			{ role: 'user' as const, content: prompt },
+		];
+
+		const response = await agent.generate(messages, {
+			temperature,
+			maxTokens,
+		});
+
+		// Return in Cedar's expected format
+		return c.json({
+			text: response.text, // Cedar expects 'text' field
+			usage: response.usage,
+		});
+	} catch (error) {
+		console.error('Chat error:', error);
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : 'Internal server error',
+			},
+			500
+		);
+	}
+}
+
+// Streaming handler - for real-time responses
+async function handleChatMessageStream(c: Context) {
+	try {
+		const body = await c.req.json();
+		const { prompt, temperature, maxTokens, systemPrompt } =
+			ChatRequestSchema.parse(body);
+
+		const agent = c.get('mastra').getAgent('productRoadmapAgent');
+		if (!agent) {
+			return c.json({ error: 'Agent not found' }, 404);
+		}
+
+		// Convert prompt to messages format for the agent
+		const messages = [
+			...(systemPrompt
+				? [{ role: 'system' as const, content: systemPrompt }]
+				: []),
+			{ role: 'user' as const, content: prompt },
+		];
+
+		const stream = await agent.stream(messages, {
+			temperature,
+			maxTokens,
+		});
+
+		// Create a TransformStream to convert the agent's stream to SSE format
+		const encoder = new TextEncoder();
+		const transformStream = new TransformStream({
+			async transform(chunk, controller) {
+				// Format as Server-Sent Events
+				controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+			},
+			flush(controller) {
+				// Send the done event
+				controller.enqueue(encoder.encode(`event: done\ndata: \n\n`));
+			},
+		});
+
+		// Pipe the text stream through our transform
+		const reader = stream.textStream.getReader();
+		const writer = transformStream.writable.getWriter();
+
+		(async () => {
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					await writer.write(value);
+				}
+			} finally {
+				await writer.close();
+			}
+		})();
+
+		return new Response(transformStream.readable, {
+			status: 200,
+			headers: {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				Connection: 'keep-alive',
+			},
+		});
+	} catch (error) {
+		console.error('Stream error:', error);
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : 'Internal server error',
+			},
+			500
+		);
+	}
+}
+
+// Structured output handler - for JSON responses
+async function handleStructuredOutput(c: Context) {
+	try {
+		const body = await c.req.json();
+		const { prompt, temperature, maxTokens, systemPrompt, output } =
+			ChatRequestSchema.parse(body);
+
+		const agent = c.get('mastra').getAgent('productRoadmapAgent');
+		if (!agent) {
+			return c.json({ error: 'Agent not found' }, 404);
+		}
+
+		// If no output schema is provided, return an error
+		if (!output) {
+			return c.json(
+				{ error: 'Output schema is required for structured output' },
+				400
+			);
+		}
+
+		// Convert prompt to messages format for the agent
+		const messages = [
+			...(systemPrompt
+				? [{ role: 'system' as const, content: systemPrompt }]
+				: []),
+			{ role: 'user' as const, content: prompt },
+		];
+
+		const response = await agent.generate(messages, {
+			temperature,
+			maxTokens,
+			output, // Pass the schema for structured output
+		});
+
+		// The structured output is in response.object when using output schema
+		return c.json({
+			object: response.object,
+			text: response.text, // Also include text for compatibility
+			usage: response.usage,
+		});
+	} catch (error) {
+		console.error('Structured output error:', error);
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : 'Internal server error',
+			},
+			500
+		);
+	}
+}
+
+// Define API routes before using them
+const apiRoutes = [
+	registerApiRoute('/chat', {
+		method: 'POST',
+		handler: handleChatMessage,
+		openapi: {
+			requestBody: {
+				content: {
+					'application/json': {
+						schema: {
+							type: 'object',
+							properties: {
+								prompt: {
+									type: 'string',
+									description: 'The prompt to send to the agent',
+								},
+								model: {
+									type: 'string',
+								},
+								temperature: {
+									type: 'number',
+								},
+								maxTokens: {
+									type: 'number',
+								},
+								systemPrompt: {
+									type: 'string',
+								},
+								output: {
+									type: 'object',
+								},
+							},
+							required: ['prompt'],
+						},
+					},
+				},
+			},
+		},
+	}),
+	registerApiRoute('/chat/stream', {
+		method: 'POST',
+		handler: handleChatMessageStream,
+		openapi: {
+			requestBody: {
+				content: {
+					'application/json': {
+						schema: {
+							type: 'object',
+							properties: {
+								prompt: {
+									type: 'string',
+									description: 'The prompt to send to the agent',
+								},
+								model: {
+									type: 'string',
+								},
+								temperature: {
+									type: 'number',
+								},
+								maxTokens: {
+									type: 'number',
+								},
+								systemPrompt: {
+									type: 'string',
+								},
+							},
+							required: ['prompt'],
+						},
+					},
+				},
+			},
+		},
+	}),
+	registerApiRoute('/chat/structured', {
+		method: 'POST',
+		handler: handleStructuredOutput,
+		openapi: {
+			requestBody: {
+				content: {
+					'application/json': {
+						schema: {
+							type: 'object',
+							properties: {
+								prompt: {
+									type: 'string',
+									description: 'The prompt to send to the agent',
+								},
+								model: {
+									type: 'string',
+								},
+								temperature: {
+									type: 'number',
+								},
+								maxTokens: {
+									type: 'number',
+								},
+								systemPrompt: {
+									type: 'string',
+								},
+								output: {
+									type: 'object',
+									description:
+										'JSON Schema or Zod schema for structured output',
+								},
+							},
+							required: ['prompt'],
+						},
+					},
+				},
+			},
+		},
+	}),
+];
 
 export const mastra = new Mastra({
 	// workflows: { productRoadmapWorkflow },
@@ -11,6 +303,13 @@ export const mastra = new Mastra({
 		// stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db
 		url: ':memory:',
 	}),
+	server: {
+		apiRoutes,
+		cors: {
+			origin: '*',
+			credentials: true,
+		},
+	},
 	logger: new PinoLogger({
 		name: 'Mastra',
 		level: 'info',

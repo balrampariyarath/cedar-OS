@@ -1,26 +1,15 @@
-import type { StateCreator } from 'zustand';
-import type { CedarStore } from '../types';
-
-export type CallAPIRouteParams = {
-	path: string;
-	body: unknown;
-};
-
-export type CallAPIRouteResponse<T = any> = T;
-
-export interface MastraAgentConfigSlice {
-	callAPIRoute: <T = any>(
-		params: CallAPIRouteParams
-	) => Promise<CallAPIRouteResponse<T>>;
-}
+// It reads from the response body and dispatches parsed events to the provided handlers.
+// Shared helper to process an SSE response
+// The helper is used by any function that needs to consume a text/event-stream response.
 
 type StreamHandlers = {
 	onMessage: (chunk: string) => void;
+	// onSuggestions: (s: ChatSuggestion[]) => void;
 	onDone: () => void;
 	onDebug?: (payload: unknown) => void;
 };
 
-async function handleEventStream(
+export async function handleEventStream(
 	response: Response,
 	handlers: StreamHandlers
 ): Promise<void> {
@@ -67,39 +56,3 @@ async function handleEventStream(
 		}
 	}
 }
-
-const MASTRA_BACKEND_URL =
-	process.env.NODE_ENV === 'development'
-		? 'http://localhost:4113'
-		: 'https://modern-lemon-whale.mastra.cloud';
-
-export const createMastraAgentConfigSlice: StateCreator<
-	CedarStore,
-	[],
-	[],
-	MastraAgentConfigSlice
-> = (set, get) => ({
-	callAPIRoute: async <T>({
-		path,
-		body,
-	}: CallAPIRouteParams): Promise<CallAPIRouteResponse<T>> => {
-		const url = `${MASTRA_BACKEND_URL}${path}`;
-		try {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(body),
-			});
-
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
-
-			const data = (await response.json()) as T;
-			return data;
-		} catch (error) {
-			console.error('Error calling API route:', error);
-			throw error;
-		}
-	},
-});

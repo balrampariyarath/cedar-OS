@@ -28,20 +28,17 @@ import {
 	saveEdges,
 } from '@/app/examples/product-roadmap/supabase/edges';
 import {
+	deleteNode,
 	getNodes,
 	saveNodes,
-	deleteNode,
 } from '@/app/examples/product-roadmap/supabase/nodes';
 import {
 	ChatInput,
-	registerState,
+	subscribeInputContext,
 	useRegisterState,
 	useStateBasedMentionProvider,
-	subscribeInputContext,
-	type MentionItem,
-	type ContextEntry,
 } from 'cedar';
-import { CheckCircle, Loader, Box, ArrowRight } from 'lucide-react';
+import { ArrowRight, Box, CheckCircle, Loader } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // -----------------------------------------------------------------------------

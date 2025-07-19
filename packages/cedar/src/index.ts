@@ -1,14 +1,19 @@
+// Components
+export { CedarCopilot } from '@/components/CedarCopilot';
 // Export components
 export {
 	ChatInput,
 	ChatInputContainer,
 } from '@/components/chatInput/ChatInput';
 
+// Store
 export { useCedarStore } from '@/store/CedarStore';
 export { registerState } from '@/store/CedarStore';
-export { createAgentInputContextSlice } from '@/store/agentInputContext/agentInputContextSlice';
-export { createChatSlice } from '@/store/chatSlice';
 export { createStylingSlice } from '@/store/stylingSlice';
+export { createMessagesSlice } from '@/store/messages/messagesSlice';
+export { createAgentInputContextSlice } from '@/store/agentInputContext/agentInputContextSlice';
+export { createAgentConnectionSlice } from '@/store/agentConnection/agentConnectionSlice';
+export { createStateSlice } from '@/store/stateSlice/stateSlice';
 
 // Export state management
 export { useCedarState } from '@/store/stateSlice/useCedarState';
@@ -28,6 +33,12 @@ export {
 	useMentionProvidersByTrigger,
 } from '@/store/agentInputContext/mentionProviders';
 
+// Export typed agent connection hooks
+export {
+	useTypedAgentConnection,
+	useAgentConnection,
+} from '@/store/agentConnection/useTypedAgentConnection';
+
 // Types
 export type {
 	ContextEntry,
@@ -38,7 +49,24 @@ export type {
 } from '@/store/agentInputContext/types';
 
 // Export types
-export type { CedarStore, StylingConfig } from '@/store/types';
-export type { ChatInput as ChatInputType } from '@/store/agentInputContext/agentInputContextSlice';
-export type { ChatSlice } from '@/store/chatSlice';
+export type { CedarStore } from '@/store/types';
 export type { StylingSlice } from '@/store/stylingSlice';
+
+// Export agent connection types
+export type {
+	ProviderConfig,
+	LLMResponse,
+	StreamEvent,
+	StreamHandler,
+	StreamResponse,
+	OpenAIParams,
+	AnthropicParams,
+	MastraParams,
+	AISDKParams,
+	CustomParams,
+	InferProviderParams,
+	InferProviderType,
+} from './store/agentConnection/types';
+
+// Export SendMessageParams from the slice
+export type { SendMessageParams } from './store/agentConnection/agentConnectionSlice';
