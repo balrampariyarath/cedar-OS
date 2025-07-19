@@ -85,6 +85,27 @@ export const ChatInput: React.FC<{
 		}
 	}, [isInputFocused, editor]);
 
+	// Handle tab key to focus the editor
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				if (editor) {
+					editor.commands.focus();
+					handleFocus();
+				}
+			}
+		};
+
+		// Add the event listener
+		window.addEventListener('keydown', handleKeyDown);
+
+		// Clean up
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+		};
+	}, [editor, handleFocus]);
+
 	const handleAddFeature = () => {
 		const executeCustomSetter = useCedarStore.getState().executeCustomSetter;
 		const newFeature = {

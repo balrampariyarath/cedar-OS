@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { MentionNodeView } from './ChatMention';
-import mentionSuggestion from '@/components/chat/suggestions';
+import mentionSuggestion from '@/components/chatInput/suggestions';
 import { useEffect, useState } from 'react';
 
 interface UseCedarEditorOptions {
