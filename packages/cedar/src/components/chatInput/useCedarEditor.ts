@@ -25,7 +25,7 @@ export const useCedarEditor = (options: UseCedarEditorOptions = {}) => {
 		onBlur,
 	} = options;
 
-	const nextMessage = useCedarStore((state: CedarStore) => state.nextMessage);
+	const sendMessage = useCedarStore((state: CedarStore) => state.sendMessage);
 	const {
 		chatInputContent,
 		overrideInputContent,
@@ -236,7 +236,7 @@ export const useCedarEditor = (options: UseCedarEditorOptions = {}) => {
 			if (onSubmit) {
 				onSubmit(textContent);
 			} else {
-				nextMessage(textContent);
+				sendMessage();
 			}
 
 			editor.commands.clearContent();
