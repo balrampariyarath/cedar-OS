@@ -1,20 +1,19 @@
 import type { StateCreator } from 'zustand';
-import type { CedarStore } from '../types';
-import type {
-	ProviderConfig,
-	LLMResponse,
-	StreamResponse,
-	StreamHandler,
-	InferProviderParams,
-	BaseParams,
-	OpenAIParams,
-	AnthropicParams,
-	MastraParams,
-	AISDKParams,
-	CustomParams,
-} from './types';
-import { getProviderImplementation } from './providers/index';
 import type { TextMessageInput } from '../messages/types';
+import type { CedarStore } from '../types';
+import { getProviderImplementation } from './providers/index';
+import type {
+	AISDKParams,
+	AnthropicParams,
+	BaseParams,
+	CustomParams,
+	LLMResponse,
+	MastraParams,
+	OpenAIParams,
+	ProviderConfig,
+	StreamHandler,
+	StreamResponse,
+} from './types';
 
 // Parameters for sending a message
 export interface SendMessageParams {
@@ -103,7 +102,14 @@ export const createAgentConnectionSlice: StateCreator<
 	currentAbortController: null,
 
 	// Core methods with runtime type checking
-	callLLM: async (params: any) => {
+	callLLM: async (
+		params:
+			| OpenAIParams
+			| AnthropicParams
+			| MastraParams
+			| AISDKParams
+			| CustomParams
+	) => {
 		const config = get().providerConfig;
 		if (!config) {
 			throw new Error('No LLM provider configured');
@@ -133,10 +139,19 @@ export const createAgentConnectionSlice: StateCreator<
 
 		const provider = getProviderImplementation(config);
 		// Type assertion is safe after runtime validation
-		return provider.callLLM(params as any, config as any);
+		// We need to use unknown here as an intermediate type for the complex union types
+		return provider.callLLM(params as unknown as never, config as never);
 	},
 
-	streamLLM: (params: any, handler: StreamHandler) => {
+	streamLLM: (
+		params:
+			| OpenAIParams
+			| AnthropicParams
+			| MastraParams
+			| AISDKParams
+			| CustomParams,
+		handler: StreamHandler
+	) => {
 		const config = get().providerConfig;
 		if (!config) {
 			throw new Error('No LLM provider configured');
@@ -171,9 +186,10 @@ export const createAgentConnectionSlice: StateCreator<
 
 		// Wrap the provider's streamLLM to handle state updates
 		// Type assertion is safe after runtime validation
+		// We need to use unknown here as an intermediate type for the complex union types
 		const originalResponse = provider.streamLLM(
-			params as any,
-			config as any,
+			params as unknown as never,
+			config as never,
 			handler
 		);
 
@@ -239,7 +255,7 @@ export const createAgentConnectionSlice: StateCreator<
 					llmParams = { ...llmParams, route: route || '/chat' };
 					break;
 				case 'ai-sdk':
-					llmParams = { ...llmParams, model: model || 'gpt-4' };
+					llmParams = { ...llmParams, model: model || 'gpt-4o-mini' };
 					break;
 			}
 

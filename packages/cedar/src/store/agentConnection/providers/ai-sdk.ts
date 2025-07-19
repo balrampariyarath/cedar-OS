@@ -3,7 +3,7 @@ import type {
 	ProviderImplementation,
 	InferProviderConfig,
 } from '../types';
-import { generateText, streamText } from 'ai';
+import { generateText, streamText, type LanguageModel } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createMistral } from '@ai-sdk/mistral';
@@ -31,7 +31,10 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 		}
 
 		// Get the provider implementation directly from the map
-		const getProvider = providerImplementations[modelConfig.provider];
+		const getProvider =
+			providerImplementations[
+				modelConfig.provider as keyof typeof providerImplementations
+			];
 		if (!getProvider) {
 			throw new Error(`Provider ${modelConfig.provider} not supported`);
 		}
@@ -39,10 +42,13 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 		const provider = getProvider(modelConfig.apiKey);
 
 		// For Google, we need to handle the model name differently
-		const modelInstance =
+		const modelName =
 			modelConfig.provider === 'google'
-				? provider(model.replace('gemini-', '')) // Google SDK expects model without 'gemini-' prefix
-				: provider(model);
+				? model.replace('gemini-', '') // Google SDK expects model without 'gemini-' prefix
+				: model;
+
+		// Get the model instance - cast to LanguageModel (V2)
+		const modelInstance = provider(modelName) as LanguageModel;
 
 		const result = await generateText({
 			model: modelInstance,
@@ -57,8 +63,11 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 			content: result.text,
 			usage: result.usage
 				? {
-						promptTokens: (result.usage as any).promptTokens || 0,
-						completionTokens: (result.usage as any).completionTokens || 0,
+						promptTokens:
+							(result.usage as { promptTokens?: number }).promptTokens || 0,
+						completionTokens:
+							(result.usage as { completionTokens?: number })
+								.completionTokens || 0,
 						totalTokens: result.usage.totalTokens || 0,
 				  }
 				: undefined,
@@ -82,7 +91,10 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 				}
 
 				// Get the provider implementation directly from the map
-				const getProvider = providerImplementations[modelConfig.provider];
+				const getProvider =
+					providerImplementations[
+						modelConfig.provider as keyof typeof providerImplementations
+					];
 				if (!getProvider) {
 					throw new Error(`Provider ${modelConfig.provider} not supported`);
 				}
@@ -90,10 +102,13 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 				const provider = getProvider(modelConfig.apiKey);
 
 				// For Google, we need to handle the model name differently
-				const modelInstance =
+				const modelName =
 					modelConfig.provider === 'google'
-						? provider(model.replace('gemini-', '')) // Google SDK expects model without 'gemini-' prefix
-						: provider(model);
+						? model.replace('gemini-', '') // Google SDK expects model without 'gemini-' prefix
+						: model;
+
+				// Get the model instance - cast to LanguageModel (V2)
+				const modelInstance = provider(modelName) as LanguageModel;
 
 				const result = await streamText({
 					model: modelInstance,

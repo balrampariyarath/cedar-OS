@@ -354,7 +354,7 @@ function DynamicComponent() {
 				prompt: 'Hello',
 				model: 'gpt-4',
 			});
-		} else if (connection.provider === 'mastra') {
+		} else if (connection.provider === 'ma`stra') {
 			// Inside this block, TypeScript knows we need route
 			await connection.callLLM({
 				prompt: 'Hello',
