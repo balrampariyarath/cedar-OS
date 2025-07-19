@@ -35,6 +35,7 @@ export const useCedarEditor = (options: UseCedarEditorOptions = {}) => {
 	const [isEditorEmpty, setIsEditorEmpty] = useState(true);
 
 	const editor = useEditor({
+		immediatelyRender: false,
 		extensions: [
 			StarterKit.configure({
 				document: false,

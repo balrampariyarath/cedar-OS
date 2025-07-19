@@ -1,10 +1,12 @@
 // Components
 export { CedarCopilot } from '@/components/CedarCopilot';
+
 // Export components
 export {
 	ChatInput,
 	ChatInputContainer,
 } from '@/components/chatInput/ChatInput';
+export { default as TooltipMenu } from '@/components/inputs/TooltipMenu';
 
 // Store
 export { useCedarStore } from '@/store/CedarStore';
