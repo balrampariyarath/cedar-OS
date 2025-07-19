@@ -78,7 +78,7 @@ export const ChatInput: React.FC<{
 	isInputFocused: boolean;
 	onSubmit?: (input: string) => void;
 }> = ({ position, handleFocus, handleBlur, isInputFocused, onSubmit }) => {
-	const nextMessage = useCedarStore((state: CedarStore) => state.nextMessage);
+	const sendMessage = useCedarStore((state: CedarStore) => state.sendMessage);
 	const {
 		chatInputContent,
 		overrideInputContent,
@@ -416,11 +416,11 @@ export const ChatInput: React.FC<{
 
 		// Only submit if there's content
 		if (textContent.trim()) {
-			// Use onSubmit if provided, otherwise fallback to nextMessage
+			// Use onSubmit if provided, otherwise fallback to sendMessage
 			if (onSubmit) {
 				onSubmit(textContent);
 			} else {
-				nextMessage(textContent);
+				sendMessage();
 			}
 
 			editor.commands.clearContent();

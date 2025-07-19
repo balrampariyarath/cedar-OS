@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createAgentInputContextSlice } from '@/store/agentInputContext/agentInputContextSlice';
-import { createChatSlice } from './chatSlice';
 import { createStylingSlice } from './stylingSlice';
 import { CedarStore } from './types';
 import { createStateSlice } from '@/store/stateSlice/stateSlice';
+import { createMessagesSlice } from '@/store/messages/messagesSlice';
+import { createAgentConnectionSlice } from '@/store/agentConnection/agentConnectionSlice';
 
 // Create the combined store
 export const useCedarStore = create<CedarStore>()(
@@ -12,14 +13,18 @@ export const useCedarStore = create<CedarStore>()(
 		(...a) => ({
 			...createStylingSlice(...a),
 			...createAgentInputContextSlice(...a),
-			...createChatSlice(...a),
 			...createStateSlice(...a),
+			...createMessagesSlice(...a),
+			...createAgentConnectionSlice(...a),
 		}),
 		{
 			name: 'cedar-store',
 			partialize: (state) => ({
-				styling: state.styling,
-				// Don't persist messages for now
+				// 	styling: state.styling,
+				// 	agentInputContext: state.agentInputContext,
+				// 	state: state.state,
+				messages: state.messages,
+				// agentConnection: state.agentConnection,
 			}),
 		}
 	)
@@ -48,3 +53,11 @@ export const useChatInput = () => ({
 // Export registerState function to allow dynamic state registration
 export const registerState: CedarStore['registerState'] = (config) =>
 	useCedarStore.getState().registerState(config);
+
+// Export getCedarState function for reading state values
+export const getCedarState: CedarStore['getCedarState'] = (key) =>
+	useCedarStore.getState().getCedarState(key);
+
+// Export setCedarState function for updating state values
+export const setCedarState: CedarStore['setCedarState'] = (key, value) =>
+	useCedarStore.getState().setCedarState(key, value);

@@ -9,36 +9,31 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-/**
- * Shades a color by a percentage
- * @param color - The base color in hex format
- * @param percent - The percentage to shade by (0-100)
- */
-export function getShadedColor(color: string, percent: number): string {
-	// Remove the # if it exists
-	let hex = color.replace('#', '');
+// Convert a hex string to its RGB components
+export const hexToRgb = (hex: string) => {
+	const r = parseInt(hex.slice(1, 3), 16);
+	const g = parseInt(hex.slice(3, 5), 16);
+	const b = parseInt(hex.slice(5, 7), 16);
+	return { r, g, b };
+};
 
-	// Convert 3-digit hex to 6-digit
-	if (hex.length === 3) {
-		hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-	}
+// Generate a darker (shaded) version of a color
+export const getShadedColor = (hex: string, shade: number) => {
+	const { r, g, b } = hexToRgb(hex);
+	return `rgb(${Math.max(0, r - shade)}, ${Math.max(0, g - shade)}, ${Math.max(
+		0,
+		b - shade
+	)})`;
+};
 
-	// Convert hex to RGB
-	const r = parseInt(hex.substring(0, 2), 16);
-	const g = parseInt(hex.substring(2, 4), 16);
-	const b = parseInt(hex.substring(4, 6), 16);
-
-	// Calculate the shaded color
-	const shadeFactor = percent / 100;
-	const shadedR = Math.round(r * shadeFactor);
-	const shadedG = Math.round(g * shadeFactor);
-	const shadedB = Math.round(b * shadeFactor);
-
-	// Convert back to hex
-	return `#${shadedR.toString(16).padStart(2, '0')}${shadedG
-		.toString(16)
-		.padStart(2, '0')}${shadedB.toString(16).padStart(2, '0')}`;
-}
+// Generate a lighter version of a color
+export const getLightenedColor = (hex: string, lighten: number) => {
+	const { r, g, b } = hexToRgb(hex);
+	return `rgb(${Math.min(255, r + lighten)}, ${Math.min(
+		255,
+		g + lighten
+	)}, ${Math.min(255, b + lighten)})`;
+};
 
 /**
  * Creates a border color based on the background color
