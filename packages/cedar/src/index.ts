@@ -1,6 +1,10 @@
 // Components
 export { CedarCopilot } from '@/components/CedarCopilot';
-export { ChatInput } from '@/components/chat/ChatInput';
+// Export components
+export {
+	ChatInput,
+	ChatInputContainer,
+} from '@/components/chatInput/ChatInput';
 
 // Store
 export { useCedarStore } from '@/store/CedarStore';
@@ -13,6 +17,7 @@ export { createStateSlice } from '@/store/stateSlice/stateSlice';
 
 // Export state management
 export { useCedarState } from '@/store/stateSlice/useCedarState';
+export { useRegisterState } from '@/store/stateSlice/stateSlice';
 
 // Export context management
 export {

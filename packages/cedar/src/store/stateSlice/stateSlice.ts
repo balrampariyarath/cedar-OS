@@ -4,6 +4,8 @@ import { StateCreator } from 'zustand';
 import { CedarStore } from '@/store/types';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod/v4';
+import { useEffect } from 'react';
+import { useCedarStore } from '@/store/CedarStore';
 
 // Define types that our state values can be
 export type BasicStateValue =
@@ -290,4 +292,41 @@ export function isRegisteredState<T>(
 		'customSetters' in value &&
 		'schema' in value
 	);
+}
+
+/**
+ * Hook that registers a state in the Cedar store.
+ * This is a hook version of registerState that handles the useEffect internally,
+ * allowing you to call it directly in the component body without worrying about
+ * state updates during render.
+ *
+ * @param config Configuration object for the state registration
+ * @param config.key Unique key for the state in the store
+ * @param config.value Current value for the state
+ * @param config.setValue Optional React setState function for external state syncing
+ * @param config.description Optional human-readable description for AI metadata
+ * @param config.customSetters Optional custom setter functions for this state
+ * @param config.schema Optional Zod schema for validating the state
+ */
+export function useRegisterState<T extends BasicStateValue>(config: {
+	key: string;
+	value: T;
+	setValue?: SetterFunction<T>;
+	description?: string;
+	schema?: ZodSchema<T>;
+	customSetters?: Record<string, Setter<T>>;
+}): void {
+	const registerState = useCedarStore((s: CedarStore) => s.registerState);
+
+	useEffect(() => {
+		registerState(config);
+	}, [
+		config.key,
+		config.value,
+		config.setValue,
+		config.description,
+		config.schema,
+		config.customSetters,
+		registerState,
+	]);
 }

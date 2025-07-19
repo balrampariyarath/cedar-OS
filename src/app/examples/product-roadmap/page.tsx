@@ -17,6 +17,7 @@ import ReactFlow, {
 	useOnSelectionChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
 	FeatureNode,
@@ -27,88 +28,18 @@ import {
 	saveEdges,
 } from '@/app/examples/product-roadmap/supabase/edges';
 import {
+	deleteNode,
 	getNodes,
 	saveNodes,
 } from '@/app/examples/product-roadmap/supabase/nodes';
 import {
 	ChatInput,
-	registerState,
 	subscribeInputContext,
+	useRegisterState,
 	useStateBasedMentionProvider,
 } from 'cedar';
 import { ArrowRight, Box, CheckCircle, Loader } from 'lucide-react';
 import { motion } from 'motion/react';
-
-// -----------------------------------------------------------------------------
-// Sample data – replace with your own roadmap later
-// -----------------------------------------------------------------------------
-
-const initialNodes: Node<FeatureNodeData>[] = [
-	{
-		id: '1',
-		type: 'featureNode',
-		position: { x: 0, y: 50 },
-		data: {
-			title: 'User Authentication',
-			description:
-				'Enable users to sign up, sign in, and manage sessions securely.',
-			upvotes: 0,
-			comments: [],
-			status: 'done',
-		},
-	},
-	{
-		id: '2',
-		type: 'featureNode',
-		position: { x: 300, y: 50 },
-		data: {
-			title: 'Team Workspaces',
-			description: 'Allow users to collaborate by creating shared workspaces.',
-			upvotes: 0,
-			comments: [],
-			status: 'planned',
-		},
-	},
-	{
-		id: '3',
-		type: 'featureNode',
-		position: { x: 600, y: 50 },
-		data: {
-			title: 'Mobile App',
-			description: 'Native iOS & Android applications for on-the-go access.',
-			upvotes: 0,
-			comments: [],
-			status: 'backlog',
-		},
-	},
-];
-
-const initialEdges: Edge[] = [
-	{
-		id: 'e1-2',
-		source: '1',
-		sourceHandle: 'right',
-		target: '2',
-		targetHandle: 'left',
-		type: 'simplebezier',
-		animated: true,
-		markerEnd: {
-			type: MarkerType.ArrowClosed,
-		},
-	},
-	{
-		id: 'e2-3',
-		source: '2',
-		sourceHandle: 'right',
-		target: '3',
-		targetHandle: 'left',
-		type: 'simplebezier',
-		animated: true,
-		markerEnd: {
-			type: MarkerType.ArrowClosed,
-		},
-	},
-];
 
 // -----------------------------------------------------------------------------
 // NodeTypes map (defined once to avoid React Flow error 002)
@@ -123,22 +54,98 @@ const nodeTypes: NodeTypes = {
 // -----------------------------------------------------------------------------
 
 function FlowCanvas() {
-	// Controlled state for nodes & edges
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	// Controlled state for nodes & edges - start with empty arrays
+	const [nodes, setNodes, onNodesChange] = useNodesState([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	// Saving/loading state
 	const [isSaving, setIsSaving] = React.useState(false);
 	const [hasSaved, setHasSaved] = React.useState(false);
 	const initialMount = React.useRef(true);
 	const saveTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	registerState({
+	// Register states using the hook version that handles useEffect internally
+	useRegisterState({
 		value: nodes,
 		setValue: setNodes,
 		key: 'nodes',
 		description: 'Product roadmap nodes',
+		customSetters: {
+			addNode: {
+				name: 'addNode',
+				description: 'Add a new node to the roadmap',
+				parameters: [
+					{
+						name: 'node',
+						type: 'Node<FeatureNodeData>',
+						description: 'The node to add',
+					},
+				],
+				execute: (currentNodes, node) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					const nodeData = node as Node<FeatureNodeData>;
+					const newNode = {
+						...nodeData,
+						id: nodeData.id || uuidv4(),
+						data: {
+							...nodeData.data,
+							nodeType: nodeData.data.nodeType || 'feature',
+							status: nodeData.data.status || 'planned',
+							upvotes: nodeData.data.upvotes || 0,
+							comments: nodeData.data.comments || [],
+						},
+					};
+					setNodes([...nodes, newNode]);
+				},
+			},
+			removeNode: {
+				name: 'removeNode',
+				description: 'Remove a node from the roadmap',
+				parameters: [
+					{
+						name: 'id',
+						type: 'string',
+						description: 'The ID of the node to remove',
+					},
+				],
+				execute: async (currentNodes, id) => {
+					const nodeId = id as string;
+					// Soft delete in the database
+					await deleteNode(nodeId);
+					// Remove from local state
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					setNodes(nodes.filter((node) => node.id !== nodeId));
+					// Also remove any edges connected to this node
+					setEdges((edges) =>
+						edges.filter(
+							(edge) => edge.source !== nodeId && edge.target !== nodeId
+						)
+					);
+				},
+			},
+			changeNode: {
+				name: 'changeNode',
+				description: 'Update an existing node in the roadmap',
+				parameters: [
+					{
+						name: 'newNode',
+						type: 'Node<FeatureNodeData>',
+						description: 'The updated node data',
+					},
+				],
+				execute: (currentNodes, newNode) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					const updatedNode = newNode as Node<FeatureNodeData>;
+					setNodes(
+						nodes.map((node) =>
+							node.id === updatedNode.id ? updatedNode : node
+						)
+					);
+				},
+			},
+		},
 	});
-	registerState({
+
+	useRegisterState({
 		key: 'edges',
 		value: edges,
 		setValue: setEdges,
@@ -177,6 +184,35 @@ function FlowCanvas() {
 		getNodes().then(setNodes);
 		getEdges().then(setEdges);
 	}, [setNodes, setEdges]);
+
+	// Custom handler for node changes that intercepts deletions
+	const handleNodesChange = React.useCallback(
+		async (changes: any[]) => {
+			// Check if any changes are deletions
+			const deletions = changes.filter((change) => change.type === 'remove');
+
+			if (deletions.length > 0) {
+				// Perform soft delete for each deleted node
+				for (const deletion of deletions) {
+					await deleteNode(deletion.id);
+				}
+
+				// Remove edges connected to deleted nodes
+				setEdges((edges) => {
+					const deletedIds = deletions.map((d) => d.id);
+					return edges.filter(
+						(edge) =>
+							!deletedIds.includes(edge.source) &&
+							!deletedIds.includes(edge.target)
+					);
+				});
+			}
+
+			// Apply all changes (including deletions) to local state
+			onNodesChange(changes);
+		},
+		[onNodesChange, setEdges]
+	);
 
 	// Persist changes with loading/saved indicator (debounced)
 	React.useEffect(() => {
@@ -226,7 +262,7 @@ function FlowCanvas() {
 				nodes={nodes}
 				edges={edges}
 				nodeTypes={nodeTypes}
-				onNodesChange={onNodesChange}
+				onNodesChange={handleNodesChange}
 				onEdgesChange={onEdgesChange}
 				onConnect={onConnect}
 				onNodeClick={onNodeClick}
@@ -309,7 +345,7 @@ function SelectedNodesPanel() {
 export default function ProductMapPage() {
 	return (
 		<ReactFlowProvider>
-			<div className='relative h-[calc(100vh-60px)] w-full'>
+			<div className='relative h-screen w-full'>
 				<FlowCanvas />
 				<SelectedNodesPanel />
 			</div>
