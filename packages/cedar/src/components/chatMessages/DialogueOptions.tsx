@@ -12,7 +12,7 @@ interface DialogueOptionsProps {
 }
 
 const DialogueOptions: React.FC<DialogueOptionsProps> = ({ message }) => {
-	const { text, options, onChoice } = message;
+	const { content, options, onChoice } = message;
 	const [selected, setSelected] = useState<string | null>(null);
 	const store = useCedarStore((state) => state);
 
@@ -20,7 +20,7 @@ const DialogueOptions: React.FC<DialogueOptionsProps> = ({ message }) => {
 
 	return (
 		<>
-			{text && <p className='mb-2 text-sm'>{text}</p>}
+			{content && <p className='mb-2 text-sm'>{content}</p>}
 			<div className='flex flex-col space-y-2'>
 				{options.map((opt: DialogueOptionChoice) => {
 					const isSelected = selected === opt.title;

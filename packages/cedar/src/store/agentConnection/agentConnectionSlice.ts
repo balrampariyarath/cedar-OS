@@ -1,5 +1,4 @@
 import type { StateCreator } from 'zustand';
-import type { TextMessageInput } from '../messages/types';
 import type { CedarStore } from '../types';
 import { getProviderImplementation } from './providers/index';
 import type {
@@ -279,7 +278,7 @@ export const createAgentConnectionSlice: StateCreator<
 				role: 'user',
 				type: 'text',
 				content: editorContent,
-			} as TextMessageInput);
+			});
 
 			// Clear the chat specific contextEntries (mentions)
 			state.clearMentions();
@@ -318,7 +317,7 @@ export const createAgentConnectionSlice: StateCreator<
 				role: 'assistant',
 				type: 'text',
 				content: response.content,
-			} as TextMessageInput);
+			});
 
 			// Clear the chat input content after successful send
 			state.setChatInputContent({
@@ -331,7 +330,7 @@ export const createAgentConnectionSlice: StateCreator<
 				role: 'assistant',
 				type: 'text',
 				content: 'An error occurred while sending your message.',
-			} as TextMessageInput);
+			});
 		} finally {
 			state.setIsProcessing(false);
 		}

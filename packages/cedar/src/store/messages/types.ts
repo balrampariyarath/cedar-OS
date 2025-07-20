@@ -80,13 +80,11 @@ export interface TodoListItem {
 
 export interface TodoListMessage extends BaseMessage {
 	type: 'todolist';
-	text: string;
 	items: TodoListItem[];
 }
 
 export interface MultipleChoiceMessage extends BaseMessage {
 	type: 'multiple_choice';
-	text: string;
 	choices: string[];
 	allowFreeInput?: boolean;
 	multiselect?: boolean;
@@ -121,7 +119,6 @@ export interface DialogueOptionChoice {
 
 export interface DialogueOptionsMessage extends BaseMessage {
 	type: 'dialogue_options';
-	text: string;
 	options: DialogueOptionChoice[];
 	allowFreeInput?: boolean;
 	/** Optional callback when an option is selected */

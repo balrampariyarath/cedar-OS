@@ -37,7 +37,7 @@ function App() {
 	addMessage({
 		type: 'text',
 		role: 'user',
-		text: 'Hello, Cedar!',
+		content: 'Hello, Cedar!',
 	});
 
 	return <ChatBubbles />;
@@ -182,7 +182,7 @@ You can override default message renderers by registering a new renderer with th
 const CustomTextRenderer: React.FC<{ message: TextMessage }> = ({
 	message,
 }) => {
-	return <div className='custom-text-style'>{message.text}</div>;
+	return <div className='custom-text-style'>{message.content}</div>;
 };
 
 useMessageRenderer({

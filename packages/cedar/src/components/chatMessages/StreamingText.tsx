@@ -7,12 +7,6 @@ interface StreamingTextProps {
 	className?: string;
 }
 
-// Helper to convert MessageText (string or array) to plain string
-const messageTextToString = (text: string): string => {
-	if (typeof text === 'string') return text;
-	return '';
-};
-
 export const StreamingText: React.FC<StreamingTextProps> = ({
 	text,
 	className = '',
@@ -25,7 +19,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
 	const keyCounterRef = useRef<number>(0);
 
 	useEffect(() => {
-		const currentText = messageTextToString(text);
+		const currentText = text;
 		const prevText = prevTextRef.current;
 
 		// Bail if nothing new
