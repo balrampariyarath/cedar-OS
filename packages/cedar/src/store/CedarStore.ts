@@ -30,6 +30,18 @@ export const useCedarStore = create<CedarStore>()(
 	)
 );
 
+export const useMessages = () => ({
+	messages: useCedarStore((state) => state.messages),
+	isProcessing: useCedarStore((state) => state.isProcessing),
+
+	setMessages: useCedarStore((state) => state.setMessages),
+	addMessage: useCedarStore((state) => state.addMessage),
+	clearMessages: useCedarStore((state) => state.clearMessages),
+	setIsProcessing: useCedarStore((state) => state.setIsProcessing),
+
+	setIsBarActive: useCedarStore((state) => state.setIsBarActive),
+});
+
 // Export the set function directly
 export const setCedarStore = useCedarStore.setState;
 

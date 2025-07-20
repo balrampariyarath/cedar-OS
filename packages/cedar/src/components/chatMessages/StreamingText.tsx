@@ -1,21 +1,15 @@
-import { MessageText } from '@/store/messages/types';
 import { motion } from 'motion/react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface StreamingTextProps {
-	text: MessageText;
+	text: string;
 	/** Optional class names for the wrapper */
 	className?: string;
 }
 
 // Helper to convert MessageText (string or array) to plain string
-const messageTextToString = (text: MessageText): string => {
+const messageTextToString = (text: string): string => {
 	if (typeof text === 'string') return text;
-	if (Array.isArray(text)) {
-		return text
-			.map((item) => (typeof item === 'string' ? item : item.text ?? ''))
-			.join(' ');
-	}
 	return '';
 };
 

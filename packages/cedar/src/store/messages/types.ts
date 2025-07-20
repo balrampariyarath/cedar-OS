@@ -9,7 +9,7 @@ export interface ChatResponse {
 export interface BaseMessage {
 	id: string;
 	role: MessageRole;
-	text: MessageText;
+	content: string;
 	createdAt?: string;
 	metadata?: Record<string, unknown>;
 	type: string;
@@ -20,12 +20,8 @@ export type TypedMessage<T extends string, P = {}> = BaseMessage & {
 	type: T;
 } & P;
 
-export type MessageText = MessageTextTypes[] | string;
-
-type MessageTextTypes = string;
-
 // Message types
-export type MessageRole = 'bot' | 'user';
+export type MessageRole = 'bot' | 'user' | 'assistant';
 
 // Type for input messages where ID is optional - will be auto-generated if not provided
 export type MessageInput =

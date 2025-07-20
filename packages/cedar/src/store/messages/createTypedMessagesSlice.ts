@@ -5,7 +5,6 @@ import type {
 	MessageByType,
 	MessageRendererConfig,
 	MessageRole,
-	MessageText,
 } from './types';
 
 // Typed messages slice interface

@@ -1,9 +1,5 @@
 import { useCedarStore, useStyling } from '@/store/CedarStore';
-import type {
-	Message,
-	MessageText,
-	TickerMessage,
-} from '@/store/messages/types';
+import type { Message, TickerMessage } from '@/store/messages/types';
 import { Ticker } from 'motion-plus-react';
 import React from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
@@ -69,12 +65,12 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 		const commonClasses =
 			'prose prose-sm inline-block rounded-xl py-2 relative text-sm w-fit [&>*+*]:mt-3 [&>ol>li+li]:mt-2 [&>ul>li+li]:mt-2 [&>ol>li>p]:mb-1 [&>ul>li>p]:mb-1';
 		const roleClasses =
-			role === 'bot'
+			role === 'bot' || role === 'assistant'
 				? `font-serif ${isDark ? 'text-gray-100' : 'text-[#141413]'}`
 				: 'text-[white] px-3';
 
 		const style =
-			role === 'bot'
+			role === 'bot' || role === 'assistant'
 				? {
 						fontSize: '0.95rem',
 						lineHeight: '1.5em',
@@ -89,39 +85,6 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 			className: `${commonClasses} ${roleClasses}`,
 			style,
 		};
-	};
-
-	// Render content with inline actions
-	const renderContentWithActions = (text: MessageText) => {
-		if (typeof text === 'string') {
-			// Use ReactMarkdown with minimal configuration
-			return (
-				<ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
-			);
-		}
-
-		if (Array.isArray(text)) {
-			return (
-				<>
-					{text.map((item, index) => {
-						if (typeof item === 'string') {
-							// Wrap in span to maintain proper key
-							return (
-								<span key={index}>
-									<ReactMarkdown components={markdownComponents}>
-										{item}
-									</ReactMarkdown>
-								</span>
-							);
-						}
-						// Handle other array item types if needed in the future
-						return null;
-					})}
-				</>
-			);
-		}
-
-		return null;
 	};
 
 	// Render different message types based on the message.type
@@ -193,7 +156,9 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 			return (
 				<div className='max-w-[100%]'>
 					<div {...getMessageStyles(message.role)}>
-						{renderContentWithActions(message.text)}
+						<ReactMarkdown components={markdownComponents}>
+							{message.content}
+						</ReactMarkdown>
 					</div>
 				</div>
 			);

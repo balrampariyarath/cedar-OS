@@ -1,5 +1,6 @@
 import ChatRenderer from '@/components/chatMessages/ChatRenderer';
 import { useCedarStore } from '@/store/CedarStore';
+import { desaturateColor } from '@/styles/stylingUtils';
 import { AnimatePresence, motion } from 'motion/react';
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
 
@@ -88,8 +89,13 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 							exit={{ opacity: 0, y: -10 }}
 							transition={{ duration: 0.2 }}
 							layout
-							className='px-2 flex justify-start my-4 bg-gray-500 text-gray-100'>
-							<div className='py-1 px-1 rounded-lg text-sm rounded-tl-sm'>
+							className='px-2 flex justify-start my-4'>
+							<div
+								className='py-1 px-1 rounded-lg text-sm rounded-tl-sm'
+								style={{
+									backgroundColor: desaturateColor(styling.color || '#f1f5f9'),
+									color: styling.accentColor || '#000000',
+								}}>
 								<div className='flex space-x-1'>
 									<div className='w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse'></div>
 									<div className='w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse delay-100'></div>

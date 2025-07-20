@@ -3,6 +3,7 @@ import { EditorContent } from '@tiptap/react';
 import {
 	Bug,
 	Code,
+	History,
 	Image,
 	MessageCircleQuestionIcon,
 	Mic,
@@ -20,6 +21,7 @@ import '@/components/chatInput/ChatInput.css';
 import { useCedarEditor } from './useCedarEditor';
 import { ContextBadgeRow } from './ContextBadgeRow';
 import { useChatInput } from '@/store/CedarStore';
+import ChatBubbles from '@/components/chatMessages/ChatBubbles';
 
 // Define interfaces for ChatInput types based on usage
 interface ChoiceInput {
@@ -52,7 +54,7 @@ export const ChatInputContainer: React.FC<ChatContainerProps> = ({
 	// Determine className based on position
 	const positionClasses = {
 		'bottom-center':
-			'h-fit fixed bottom-20 left-1/2 transform -translate-x-1/2 w-full max-w-3xl z-[9999] cedar-caption-container',
+			'h-fit fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-3xl z-[9999] cedar-caption-container',
 		embedded: 'w-full',
 		custom: '',
 	};
@@ -234,9 +236,9 @@ export const ChatInput: React.FC<{
 					</Container3DButton>
 				</div>
 				<div className='flex space-x-2'>
-					<Container3DButton id='settings-btn' childClassName='p-1.5'>
+					<Container3DButton id='history-btn' childClassName='p-1.5'>
 						<span className='flex items-center gap-1'>
-							<MessageCircleQuestionIcon className='w-4 h-4' />
+							<History className='w-4 h-4' />
 						</span>
 					</Container3DButton>
 					<Container3DButton id='settings-btn' childClassName='p-1.5'>
@@ -248,6 +250,9 @@ export const ChatInput: React.FC<{
 			</div>
 
 			<Container3D className='p-2'>
+				<div className='w-full h-24'>
+					<ChatBubbles />
+				</div>
 				{/* Input context row showing selected context nodes */}
 				<ContextBadgeRow editor={editor} />
 

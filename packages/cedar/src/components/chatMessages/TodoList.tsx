@@ -1,5 +1,5 @@
 import React from 'react';
-import { TodoListMessage } from '@/store/messagesSlice';
+import { TodoListMessage } from '@/store/messages/types';
 import { Check } from 'lucide-react';
 import { useMessages } from '@/store/CedarStore';
 
