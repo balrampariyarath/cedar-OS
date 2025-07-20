@@ -7,7 +7,7 @@ import { createStateSlice } from '@/store/stateSlice/stateSlice';
 import { createMessagesSlice } from '@/store/messages/messagesSlice';
 import { createAgentConnectionSlice } from '@/store/agentConnection/agentConnectionSlice';
 
-// Create the combined store
+// Create the combined store (default for backwards compatibility)
 export const useCedarStore = create<CedarStore>()(
 	persist(
 		(...a) => ({
@@ -29,6 +29,19 @@ export const useCedarStore = create<CedarStore>()(
 		}
 	)
 );
+
+export const useMessages = () => ({
+	messages: useCedarStore((state) => state.messages),
+	isProcessing: useCedarStore((state) => state.isProcessing),
+	showChat: useCedarStore((state) => state.showChat),
+
+	setMessages: useCedarStore((state) => state.setMessages),
+	addMessage: useCedarStore((state) => state.addMessage),
+	clearMessages: useCedarStore((state) => state.clearMessages),
+	setIsProcessing: useCedarStore((state) => state.setIsProcessing),
+
+	setShowChat: useCedarStore((state) => state.setShowChat),
+});
 
 // Export the set function directly
 export const setCedarStore = useCedarStore.setState;
@@ -61,3 +74,20 @@ export const getCedarState: CedarStore['getCedarState'] = (key) =>
 // Export setCedarState function for updating state values
 export const setCedarState: CedarStore['setCedarState'] = (key, value) =>
 	useCedarStore.getState().setCedarState(key, value);
+
+// Export the extensible store creator
+export { createCedarStore } from './createCedarStore';
+export type { CreateCedarStoreOptions } from './createCedarStore';
+
+// Export the typed messages slice creator
+export { createTypedMessagesSlice } from './messages/createTypedMessagesSlice';
+export type { TypedMessagesSlice } from './messages/createTypedMessagesSlice';
+
+// Export message types
+export type {
+	BaseMessage,
+	DefaultMessage,
+	TypedMessage,
+	MessageByType,
+	MessageRendererConfig,
+} from './messages/types';

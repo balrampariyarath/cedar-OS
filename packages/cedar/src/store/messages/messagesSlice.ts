@@ -5,6 +5,7 @@ import type {
 	MessageInput,
 	MessageRenderer,
 	MessageRendererRegistry,
+	MessageRendererConfig,
 } from './types';
 
 // Define the messages slice
@@ -12,7 +13,7 @@ export interface MessagesSlice {
 	// State
 	messages: Message[];
 	isProcessing: boolean;
-	isBarActive: boolean;
+	showChat: boolean;
 
 	// Message renderer registry
 	messageRenderers: MessageRendererRegistry;
@@ -24,7 +25,7 @@ export interface MessagesSlice {
 	deleteMessage: (id: string) => void;
 	clearMessages: () => void;
 	setIsProcessing: (isProcessing: boolean) => void;
-	setIsBarActive: (isBarActive: boolean) => void;
+	setShowChat: (showChat: boolean) => void;
 
 	// Renderer management
 	registerMessageRenderer: (type: string, renderer: MessageRenderer) => void;
@@ -47,13 +48,13 @@ export const createMessagesSlice: StateCreator<
 		// Default state
 		messages: [],
 		isProcessing: false,
-		isBarActive: false,
+		showChat: false,
 		messageRenderers: {},
 
 		// Actions
 		setMessages: (messages: Message[]) => set({ messages }),
 
-		setIsBarActive: (isBarActive: boolean) => set({ isBarActive }),
+		setShowChat: (showChat: boolean) => set({ showChat }),
 
 		addMessage: (messageData: MessageInput): Message => {
 			const newMessage: Message = {
@@ -61,8 +62,8 @@ export const createMessagesSlice: StateCreator<
 				id: `message-${Date.now()}-${Math.random()
 					.toString(36)
 					.substring(2, 9)}`,
-				timestamp: new Date(),
-			} as Message;
+				createdAt: new Date().toISOString(),
+			} as unknown as Message;
 
 			set((state) => ({
 				messages: [...state.messages, newMessage],
@@ -74,7 +75,7 @@ export const createMessagesSlice: StateCreator<
 		updateMessage: (id: string, updates: Partial<Message>) => {
 			set((state) => ({
 				messages: state.messages.map((msg) =>
-					msg.id === id ? { ...msg, ...updates } : msg
+					msg.id === id ? ({ ...msg, ...updates } as Message) : msg
 				),
 			}));
 		},
