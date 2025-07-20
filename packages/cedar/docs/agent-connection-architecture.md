@@ -58,10 +58,18 @@ const providerRegistry = {
 The `CedarCopilot` component will accept a discriminated union for provider configuration:
 
 ```typescript
-// Model to API key mapping for AI SDK
-type AISDKModelConfig = {
-	[model: string]: {
-		provider: 'openai' | 'anthropic' | 'google' | 'mistral';
+// Provider to API key mapping for AI SDK
+type AISDKProviderConfig = {
+	openai?: {
+		apiKey: string;
+	};
+	anthropic?: {
+		apiKey: string;
+	};
+	google?: {
+		apiKey: string;
+	};
+	mistral?: {
 		apiKey: string;
 	};
 };
@@ -70,7 +78,7 @@ type ProviderConfig =
 	| { provider: 'openai'; apiKey: string }
 	| { provider: 'anthropic'; apiKey: string }
 	| { provider: 'mastra'; apiKey?: string; baseURL: string }
-	| { provider: 'ai-sdk'; models: AISDKModelConfig }
+	| { provider: 'ai-sdk'; providers: AISDKProviderConfig }
 	| { provider: 'custom'; config: CustomProviderConfig };
 ```
 
@@ -97,7 +105,7 @@ type MastraParams = {
 
 type AISDKParams = {
 	prompt: string;
-	model: string; // Model name that maps to the config
+	model: string; // Format: "provider/model" e.g., "openai/gpt-4o", "anthropic/claude-3-sonnet"
 	temperature?: number;
 	maxTokens?: number;
 };
@@ -109,8 +117,9 @@ callLLM({ prompt: 'Hello', model: 'gpt-4', route: '/chat/completions' });
 // If provider is 'openai', no route required
 callLLM({ prompt: 'Hello', model: 'gpt-4' });
 
-// If provider is 'ai-sdk', it uses the model to look up the API key
-callLLM({ prompt: 'Hello', model: 'gpt-4' }); // Uses models['gpt-4'] config
+// If provider is 'ai-sdk', it uses the model string to determine provider and model
+callLLM({ prompt: 'Hello', model: 'openai/gpt-4o' }); // Uses providers.openai config
+callLLM({ prompt: 'Hello', model: 'anthropic/claude-3-sonnet' }); // Uses providers.anthropic config
 ```
 
 ## Implementation Strategy
@@ -170,28 +179,46 @@ type InferProviderParams<T extends ProviderConfig> = T extends {
 // AI SDK provider with static imports
 import { generateText, streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 
 const providerImplementations = {
 	openai: (apiKey: string) => createOpenAI({ apiKey }),
-	anthropic: (apiKey: string) => {
-		// When available: import { createAnthropic } from '@ai-sdk/anthropic';
-		return createAnthropic({ apiKey });
-	},
+	anthropic: (apiKey: string) => createAnthropic({ apiKey }),
 	// ... other providers
 };
 
+// Helper function to parse model string
+function parseModelString(modelString: string) {
+	const [provider, ...modelParts] = modelString.split('/');
+	const model = modelParts.join('/');
+
+	if (!provider || !model) {
+		throw new Error(`Invalid model format: ${modelString}`);
+	}
+
+	return { provider, model };
+}
+
 const aiSDKProvider: ProviderTemplate<AISDKParams> = {
 	callLLM: async (params, config) => {
-		const { model, prompt, ...options } = params;
-		const modelConfig = config.models[model];
+		const { model: modelString, prompt, ...options } = params;
 
-		if (!modelConfig) {
-			throw new Error(`Model ${model} not configured`);
+		// Parse "openai/gpt-4o" -> { provider: "openai", model: "gpt-4o" }
+		const { provider: providerName, model } = parseModelString(modelString);
+
+		// Get the provider config
+		const providerConfig = config.providers[providerName];
+		if (!providerConfig) {
+			throw new Error(`Provider ${providerName} not configured`);
 		}
 
-		const provider = providerImplementations[modelConfig.provider](
-			modelConfig.apiKey
-		);
+		// Get the provider implementation
+		const getProvider = providerImplementations[providerName];
+		if (!getProvider) {
+			throw new Error(`Provider ${providerName} not supported`);
+		}
+
+		const provider = getProvider(providerConfig.apiKey);
 
 		const result = await generateText({
 			model: provider(model),
@@ -202,7 +229,7 @@ const aiSDKProvider: ProviderTemplate<AISDKParams> = {
 		return {
 			content: result.text,
 			usage: result.usage,
-			metadata: { model, finishReason: result.finishReason },
+			metadata: { model: modelString, finishReason: result.finishReason },
 		};
 	},
 
