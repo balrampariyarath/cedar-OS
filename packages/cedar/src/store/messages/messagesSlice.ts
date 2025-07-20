@@ -13,7 +13,7 @@ export interface MessagesSlice {
 	// State
 	messages: Message[];
 	isProcessing: boolean;
-	isBarActive: boolean;
+	showChat: boolean;
 
 	// Message renderer registry
 	messageRenderers: MessageRendererRegistry;
@@ -25,7 +25,7 @@ export interface MessagesSlice {
 	deleteMessage: (id: string) => void;
 	clearMessages: () => void;
 	setIsProcessing: (isProcessing: boolean) => void;
-	setIsBarActive: (isBarActive: boolean) => void;
+	setShowChat: (showChat: boolean) => void;
 
 	// Renderer management
 	registerMessageRenderer: (type: string, renderer: MessageRenderer) => void;
@@ -48,13 +48,13 @@ export const createMessagesSlice: StateCreator<
 		// Default state
 		messages: [],
 		isProcessing: false,
-		isBarActive: false,
+		showChat: false,
 		messageRenderers: {},
 
 		// Actions
 		setMessages: (messages: Message[]) => set({ messages }),
 
-		setIsBarActive: (isBarActive: boolean) => set({ isBarActive }),
+		setShowChat: (showChat: boolean) => set({ showChat }),
 
 		addMessage: (messageData: MessageInput): Message => {
 			const newMessage: Message = {

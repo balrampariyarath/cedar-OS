@@ -1,7 +1,7 @@
-import { CollapsedButton } from '@/components/commandBar/CollapsedChatButton';
-import BorderInsetButton from '@/components/ui/BorderInsetButton';
-import Container3D from '@/components/ui/Container3D';
-import { cn } from '@/lib/utils';
+import { CollapsedButton } from '@/components/chatMessages/structural/CollapsedChatButton';
+import { Button } from '@/components/ui/button';
+import Container3D from '@/components/containers/Container3D';
+import { cn } from '@/styles/stylingUtils';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import React, {
@@ -11,7 +11,7 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
-import { GradientMesh } from './GradientMesh';
+import { GradientMesh } from '@/components/ornaments/GradientMesh';
 
 interface CedarSidePanelProps {
 	children?: React.ReactNode;
@@ -207,12 +207,12 @@ export const CedarSidePanel: React.FC<CedarSidePanelProps> = ({
 									<span className='font-bold text-lg truncate '>{title}</span>
 								</div>
 								<div className='flex items-center gap-2 flex-shrink-0 h-8'>
-									<BorderInsetButton
+									<Button
 										className='p-1'
 										onClick={handleClose}
 										aria-label='Close panel'>
 										<X className='h-3.5 w-3.5' strokeWidth={2.5} />
-									</BorderInsetButton>
+									</Button>
 								</div>
 							</div>
 
@@ -234,13 +234,10 @@ export const CedarSidePanel: React.FC<CedarSidePanelProps> = ({
 						transition={{ duration: 0.2, ease: 'easeInOut' }}
 						className='fixed bottom-4 right-4 flex'>
 						<CollapsedButton
-							styleType='3d'
 							side={side as 'left' | 'right'}
 							label={title}
 							onClick={() => setIsActive(true)}
 							layoutId='collapsed-sidepanel-button'
-							companyLogo={companyLogo}
-							backgroundColor='rgba(255,255,255,0.08)'
 							position='absolute'
 						/>
 					</motion.div>

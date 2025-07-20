@@ -12,7 +12,7 @@ export interface TypedMessagesSlice<M extends BaseMessage = DefaultMessage> {
 	// State
 	messages: M[];
 	isProcessing: boolean;
-	isBarActive: boolean;
+	showChat: boolean;
 
 	// Message renderer registry
 	messageRenderers: Map<string, MessageRendererConfig<any>>;
@@ -32,7 +32,7 @@ export interface TypedMessagesSlice<M extends BaseMessage = DefaultMessage> {
 	deleteMessage: (id: string) => void;
 	clearMessages: () => void;
 	setIsProcessing: (isProcessing: boolean) => void;
-	setIsBarActive: (isBarActive: boolean) => void;
+	setShowChat: (showChat: boolean) => void;
 	setMessages: (messages: M[]) => void;
 
 	// Renderer management
@@ -55,12 +55,12 @@ export function createTypedMessagesSlice<
 	return (set, get) => ({
 		messages: [],
 		isProcessing: false,
-		isBarActive: false,
+		showChat: false,
 		messageRenderers: new Map(),
 
 		setMessages: (messages: M[]) => set({ messages }),
 
-		setIsBarActive: (isBarActive: boolean) => set({ isBarActive }),
+		setShowChat: (showChat: boolean) => set({ showChat }),
 
 		addMessage: (messageData) => {
 			const newMessage = {
