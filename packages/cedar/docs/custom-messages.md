@@ -164,7 +164,7 @@ addMessage({
 You can extend the store with multiple slices:
 
 ```tsx
-const messagesSlice = createTypedMessagesSlice<MyMessages>();
+const messagesSlice = createTypedMessagesSlice<CustomMessages>();
 const featuresSlice = createFeatureSlice();
 const analyticsSlice = createAnalyticsSlice();
 
