@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
 import { useCedarStore } from '@/store/CedarStore';
 import type {
 	BaseMessage,
 	MessageRendererConfig,
 } from '@/store/messages/types';
+import React, { useEffect, useMemo } from 'react';
 
 /**
  * Hook to register a message renderer with the Cedar store
@@ -19,25 +19,29 @@ export function useMessageRenderer<T extends BaseMessage = BaseMessage>(
 		(s) => s.unregisterMessageRenderer
 	);
 
-	useEffect(() => {
-		// Register the renderer
+	// Memoize the renderer function to prevent unnecessary re-creations
+	const renderer = useMemo(() => {
 		// Wrap the component to match the MessageRenderer signature
-		const renderer = (message: any) => {
+		return (message: any) => {
 			const Component = config.renderer;
 			return React.createElement(Component, { message });
 		};
-		registerMessageRenderer(config.type, renderer);
+	}, [config.renderer]);
+
+	// Extract stable values from config
+	const type = config.type;
+	const priority = config.priority;
+	const validateMessage = config.validateMessage;
+
+	useEffect(() => {
+		// Register the renderer
+		registerMessageRenderer(type, renderer);
 
 		// Cleanup on unmount
 		return () => {
-			unregisterMessageRenderer(config.type);
+			unregisterMessageRenderer(type);
 		};
-	}, [
-		config.type,
-		config.renderer,
-		registerMessageRenderer,
-		unregisterMessageRenderer,
-	]);
+	}, [type, renderer, registerMessageRenderer, unregisterMessageRenderer]);
 }
 
 /**
@@ -52,22 +56,28 @@ export function useMessageRenderers(configs: MessageRendererConfig<any>[]) {
 		(s) => s.unregisterMessageRenderer
 	);
 
-	useEffect(() => {
-		// Register all renderers
-		configs.forEach((config) => {
-			// Wrap the component to match the MessageRenderer signature
-			const renderer = (message: any) => {
+	// Memoize the renderers to prevent unnecessary re-creations
+	const renderers = useMemo(() => {
+		return configs.map((config) => ({
+			type: config.type,
+			renderer: (message: any) => {
 				const Component = config.renderer;
 				return React.createElement(Component, { message });
-			};
-			registerMessageRenderer(config.type, renderer);
+			},
+		}));
+	}, [configs]);
+
+	useEffect(() => {
+		// Register all renderers
+		renderers.forEach(({ type, renderer }) => {
+			registerMessageRenderer(type, renderer);
 		});
 
 		// Cleanup on unmount
 		return () => {
-			configs.forEach((config) => {
-				unregisterMessageRenderer(config.type);
+			renderers.forEach(({ type }) => {
+				unregisterMessageRenderer(type);
 			});
 		};
-	}, [configs, registerMessageRenderer, unregisterMessageRenderer]);
+	}, [renderers, registerMessageRenderer, unregisterMessageRenderer]);
 }
