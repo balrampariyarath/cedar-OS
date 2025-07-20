@@ -125,7 +125,7 @@ export const desaturateColor = (color: string) => {
 	if (color.startsWith('rgba')) return color;
 	// If it's a hex color, convert it to have opacity
 	if (color.startsWith('#')) {
-		return `${color}40`; // Adding 50% opacity (80 in hex)
+		return `${color}40`; // Adding 25% opacity (40 in hex)
 	}
 	// If it's an rgb color or other format, assume it's rgb and add opacity
 	return color.replace('rgb', 'rgba').replace(')', ', 0.7)');
