@@ -14,6 +14,7 @@ import type {
 	StreamHandler,
 	StreamResponse,
 } from './types';
+import { useCedarStore } from '@/store/CedarStore';
 
 // Parameters for sending a message
 export interface SendMessageParams {
@@ -87,6 +88,56 @@ export type TypedAgentConnectionSlice<T extends ProviderConfig> = Omit<
 		params: GetParamsForConfig<T>,
 		handler: StreamHandler
 	) => StreamResponse;
+};
+
+export const improvePrompt = async (
+	prompt: string,
+	handler?: StreamHandler
+): Promise<string> => {
+	const systemPrompt = `You are an AI assistant that helps improve prompts for clarity and specificity. 
+Given a user's prompt, analyze it and enhance it to be more specific, detailed, and effective.
+Focus on adding context, clarifying ambiguities, and structuring the prompt for better results.
+Return only the improved prompt without explanations or meta-commentary.`;
+
+	const store = useCedarStore.getState();
+
+	if (handler) {
+		// Use streaming if handler is provided
+		store.streamLLM(
+			{
+				prompt,
+				systemPrompt,
+			},
+			handler
+		);
+
+		// Wait for completion and return the final content
+		let improvedPrompt = '';
+		const originalHandler = handler;
+
+		await new Promise<void>((resolve) => {
+			handler = (event) => {
+				if (event.type === 'chunk') {
+					improvedPrompt += event.content;
+				} else if (event.type === 'done') {
+					resolve();
+				}
+				originalHandler(event);
+			};
+		});
+
+		return improvedPrompt;
+	} else {
+		// Use non-streaming version
+		const response = await store.callLLM({
+			prompt,
+			systemPrompt,
+			temperature: 0.7,
+			maxTokens: 1000,
+		});
+
+		return response.content;
+	}
 };
 
 export const createAgentConnectionSlice: StateCreator<
@@ -255,7 +306,7 @@ export const createAgentConnectionSlice: StateCreator<
 					llmParams = { ...llmParams, route: route || '/chat' };
 					break;
 				case 'ai-sdk':
-					llmParams = { ...llmParams, model: model || 'gpt-4o-mini' };
+					llmParams = { ...llmParams, model: model || 'openai/gpt-4o-mini' };
 					break;
 			}
 

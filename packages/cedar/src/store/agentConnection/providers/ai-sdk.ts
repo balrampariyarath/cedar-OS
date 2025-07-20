@@ -21,29 +21,62 @@ const providerImplementations = {
 	groq: (apiKey: string) => createGroq({ apiKey }),
 } as const;
 
+// Helper function to parse model string and get provider/model
+function parseModelString(modelString: string) {
+	const [provider, ...modelParts] = modelString.split('/');
+	const model = modelParts.join('/'); // Handle cases like "openai/gpt-4o-mini"
+
+	if (!provider || !model) {
+		throw new Error(
+			`Invalid model format: ${modelString}. Expected format: "provider/model" (e.g., "openai/gpt-4o", "anthropic/claude-3-sonnet")`
+		);
+	}
+
+	return { provider, model };
+}
+
 export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 	callLLM: async (params, config) => {
-		const { model, prompt, systemPrompt, temperature, ...rest } = params;
+		const {
+			model: modelString,
+			prompt,
+			systemPrompt,
+			temperature,
+			...rest
+		} = params;
 
-		const modelConfig = config.models[model];
-		if (!modelConfig) {
-			throw new Error(`Model ${model} not configured`);
+		// Parse the model string to get provider and model
+		const { provider: providerName, model } = parseModelString(modelString);
+
+		// Get the provider config
+		const providerConfig =
+			config.providers[providerName as keyof typeof config.providers];
+		if (!providerConfig) {
+			throw new Error(
+				`Provider ${providerName} not configured. Available providers: ${Object.keys(
+					config.providers
+				).join(', ')}`
+			);
 		}
 
-		// Get the provider implementation directly from the map
+		// Get the provider implementation
 		const getProvider =
 			providerImplementations[
-				modelConfig.provider as keyof typeof providerImplementations
+				providerName as keyof typeof providerImplementations
 			];
 		if (!getProvider) {
-			throw new Error(`Provider ${modelConfig.provider} not supported`);
+			throw new Error(
+				`Provider ${providerName} not supported. Supported providers: ${Object.keys(
+					providerImplementations
+				).join(', ')}`
+			);
 		}
 
-		const provider = getProvider(modelConfig.apiKey);
+		const provider = getProvider(providerConfig.apiKey);
 
 		// For Google, we need to handle the model name differently
 		const modelName =
-			modelConfig.provider === 'google'
+			providerName === 'google'
 				? model.replace('gemini-', '') // Google SDK expects model without 'gemini-' prefix
 				: model;
 
@@ -72,7 +105,7 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 				  }
 				: undefined,
 			metadata: {
-				model,
+				model: modelString,
 				finishReason: result.finishReason,
 			},
 		};
@@ -83,27 +116,46 @@ export const aiSDKProvider: ProviderImplementation<AISDKParams, AISDKConfig> = {
 
 		const completion = (async () => {
 			try {
-				const { model, prompt, systemPrompt, temperature, ...rest } = params;
+				const {
+					model: modelString,
+					prompt,
+					systemPrompt,
+					temperature,
+					...rest
+				} = params;
 
-				const modelConfig = config.models[model];
-				if (!modelConfig) {
-					throw new Error(`Model ${model} not configured`);
+				// Parse the model string to get provider and model
+				const { provider: providerName, model } = parseModelString(modelString);
+
+				// Get the provider config
+				const providerConfig =
+					config.providers[providerName as keyof typeof config.providers];
+				if (!providerConfig) {
+					throw new Error(
+						`Provider ${providerName} not configured. Available providers: ${Object.keys(
+							config.providers
+						).join(', ')}`
+					);
 				}
 
-				// Get the provider implementation directly from the map
+				// Get the provider implementation
 				const getProvider =
 					providerImplementations[
-						modelConfig.provider as keyof typeof providerImplementations
+						providerName as keyof typeof providerImplementations
 					];
 				if (!getProvider) {
-					throw new Error(`Provider ${modelConfig.provider} not supported`);
+					throw new Error(
+						`Provider ${providerName} not supported. Supported providers: ${Object.keys(
+							providerImplementations
+						).join(', ')}`
+					);
 				}
 
-				const provider = getProvider(modelConfig.apiKey);
+				const provider = getProvider(providerConfig.apiKey);
 
 				// For Google, we need to handle the model name differently
 				const modelName =
-					modelConfig.provider === 'google'
+					providerName === 'google'
 						? model.replace('gemini-', '') // Google SDK expects model without 'gemini-' prefix
 						: model;
 
