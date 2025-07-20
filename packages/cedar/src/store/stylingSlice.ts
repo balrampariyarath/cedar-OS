@@ -3,7 +3,7 @@ import { CedarStore } from './types';
 
 export interface StylingConfig {
 	darkMode: boolean;
-	primaryColor: string;
+	color: string;
 	secondaryColor: string;
 	accentColor: string;
 }
@@ -21,7 +21,7 @@ export type StylingSlice = StylingState & StylingActions;
 
 const DEFAULT_STYLING: StylingConfig = {
 	darkMode: false,
-	primaryColor: '#93C5FD', // blue-300
+	color: '#93C5FD', // blue-300
 	secondaryColor: '#1D4ED8', // blue-700
 	accentColor: '#FB923C', // orange-400
 };

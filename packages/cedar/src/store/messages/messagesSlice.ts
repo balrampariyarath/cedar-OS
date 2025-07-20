@@ -5,6 +5,7 @@ import type {
 	MessageInput,
 	MessageRenderer,
 	MessageRendererRegistry,
+	MessageRendererConfig,
 } from './types';
 
 // Define the messages slice
@@ -61,8 +62,8 @@ export const createMessagesSlice: StateCreator<
 				id: `message-${Date.now()}-${Math.random()
 					.toString(36)
 					.substring(2, 9)}`,
-				timestamp: new Date(),
-			} as Message;
+				createdAt: new Date().toISOString(),
+			} as unknown as Message;
 
 			set((state) => ({
 				messages: [...state.messages, newMessage],
@@ -74,7 +75,7 @@ export const createMessagesSlice: StateCreator<
 		updateMessage: (id: string, updates: Partial<Message>) => {
 			set((state) => ({
 				messages: state.messages.map((msg) =>
-					msg.id === id ? { ...msg, ...updates } : msg
+					msg.id === id ? ({ ...msg, ...updates } as Message) : msg
 				),
 			}));
 		},
