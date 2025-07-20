@@ -23,15 +23,6 @@ import { ContextBadgeRow } from './ContextBadgeRow';
 import { useChatInput } from '@/store/CedarStore';
 import ChatBubbles from '@/components/chatMessages/ChatBubbles';
 
-// Define interfaces for ChatInput types based on usage
-interface ChoiceInput {
-	field: string;
-	options: string[];
-	chosenValue: string;
-}
-
-type ChatInputType = string | ChoiceInput;
-
 // ChatContainer component with position options
 export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
 

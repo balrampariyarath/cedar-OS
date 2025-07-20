@@ -45,7 +45,7 @@ export interface MastraParams extends BaseParams {
 }
 
 export interface AISDKParams extends BaseParams {
-	model: string; // Model name that maps to the config
+	model: string; // Format: "provider/model" e.g., "openai/gpt-4o", "anthropic/claude-3-sonnet"
 }
 
 export interface CustomParams extends BaseParams {
@@ -53,9 +53,17 @@ export interface CustomParams extends BaseParams {
 }
 
 // Model to API key mapping for AI SDK
-export type AISDKModelConfig = {
-	[model: string]: {
-		provider: 'openai' | 'anthropic' | 'google' | 'mistral';
+export type AISDKProviderConfig = {
+	openai?: {
+		apiKey: string;
+	};
+	anthropic?: {
+		apiKey: string;
+	};
+	google?: {
+		apiKey: string;
+	};
+	mistral?: {
 		apiKey: string;
 	};
 };
@@ -65,7 +73,7 @@ export type ProviderConfig =
 	| { provider: 'openai'; apiKey: string }
 	| { provider: 'anthropic'; apiKey: string }
 	| { provider: 'mastra'; apiKey?: string; baseURL: string }
-	| { provider: 'ai-sdk'; models: AISDKModelConfig }
+	| { provider: 'ai-sdk'; providers: AISDKProviderConfig }
 	| { provider: 'custom'; config: Record<string, unknown> };
 
 // Type inference helpers

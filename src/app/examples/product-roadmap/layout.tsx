@@ -23,9 +23,8 @@ export default function ProductRoadmapLayout({
 
 	const llmProvider: ProviderConfig = {
 		provider: 'ai-sdk',
-		models: {
-			'gpt-4o-mini': {
-				provider: 'openai',
+		providers: {
+			openai: {
 				apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
 			},
 		},
