@@ -9,7 +9,7 @@ interface MultipleChoiceProps {
 }
 
 const MultipleChoice: React.FC<MultipleChoiceProps> = ({ message }) => {
-	const { text, choices, multiselect, onChoice } = message;
+	const { content, choices, multiselect, onChoice } = message;
 	const [selected, setSelected] = useState<string[]>([]);
 	const store = useCedarStore((state) => state);
 
@@ -30,7 +30,7 @@ const MultipleChoice: React.FC<MultipleChoiceProps> = ({ message }) => {
 
 	return (
 		<>
-			{text && <p className='mb-2 text-sm'>{text}</p>}
+			{content && <p className='mb-2 text-sm'>{content}</p>}
 			<div className='flex flex-col space-y-2'>
 				{choices.map((choice) => {
 					const isSelected = selected.includes(choice);

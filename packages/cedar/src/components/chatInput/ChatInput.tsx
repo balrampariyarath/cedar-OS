@@ -15,7 +15,6 @@ import React, { useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import '@/components/chatInput/ChatInput.css';
-import ChatBubbles from '@/components/chatMessages/ChatBubbles';
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
 import { useChatInput } from '@/store/CedarStore';
@@ -24,6 +23,7 @@ import { ContextBadgeRow } from './ContextBadgeRow';
 import { useCedarEditor } from './useCedarEditor';
 
 // Create a voice-enabled store instance
+import CaptionMessages from '@/components/chatMessages/CaptionMessages';
 
 // ChatContainer component with position options
 export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
@@ -292,8 +292,8 @@ export const ChatInput: React.FC<{
 			</div>
 
 			<Container3D className='p-2'>
-				<div className='w-full h-24'>
-					<ChatBubbles />
+				<div className='w-full pb-3'>
+					<CaptionMessages />
 				</div>
 				{/* Input context row showing selected context nodes */}
 				<ContextBadgeRow editor={editor} />
