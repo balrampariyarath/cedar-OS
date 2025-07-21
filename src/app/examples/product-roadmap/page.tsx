@@ -10,6 +10,7 @@ import ReactFlow, {
 	Edge,
 	MarkerType,
 	Node,
+	NodeChange,
 	NodeTypes,
 	ReactFlowProvider,
 	useEdgesState,
@@ -93,6 +94,7 @@ function FlowCanvas() {
 							status: nodeData.data.status || 'planned',
 							upvotes: nodeData.data.upvotes || 0,
 							comments: nodeData.data.comments || [],
+							diff: 'added' as const,
 						},
 					};
 					setNodes([...nodes, newNode]);
@@ -110,15 +112,13 @@ function FlowCanvas() {
 				],
 				execute: async (currentNodes, id) => {
 					const nodeId = id as string;
-					// Soft delete in the database
-					await deleteNode(nodeId);
-					// Remove from local state
 					const nodes = currentNodes as Node<FeatureNodeData>[];
-					setNodes(nodes.filter((node) => node.id !== nodeId));
-					// Also remove any edges connected to this node
-					setEdges((edges) =>
-						edges.filter(
-							(edge) => edge.source !== nodeId && edge.target !== nodeId
+					// Instead of removing, mark as removed with diff
+					setNodes(
+						nodes.map((node) =>
+							node.id === nodeId
+								? { ...node, data: { ...node.data, diff: 'removed' as const } }
+								: node
 						)
 					);
 				},
@@ -138,8 +138,140 @@ function FlowCanvas() {
 					const updatedNode = newNode as Node<FeatureNodeData>;
 					setNodes(
 						nodes.map((node) =>
-							node.id === updatedNode.id ? updatedNode : node
+							node.id === updatedNode.id
+								? {
+										...updatedNode,
+										data: { ...updatedNode.data, diff: 'changed' as const },
+								  }
+								: node
 						)
+					);
+				},
+			},
+			acceptDiff: {
+				name: 'acceptDiff',
+				description: 'Accept a diff for a node',
+				parameters: [
+					{
+						name: 'nodeId',
+						type: 'string',
+						description: 'The ID of the node to accept the diff for',
+					},
+				],
+				execute: async (currentNodes, nodeId) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					const nodeIdStr = nodeId as string;
+					const node = nodes.find((n) => n.id === nodeIdStr);
+
+					if (!node || !node.data.diff) return;
+
+					if (node.data.diff === 'removed') {
+						// Actually remove the node
+						await deleteNode(nodeIdStr);
+						setNodes(nodes.filter((n) => n.id !== nodeIdStr));
+						// Also remove any edges connected to this node
+						setEdges((edges) =>
+							edges.filter(
+								(edge) => edge.source !== nodeIdStr && edge.target !== nodeIdStr
+							)
+						);
+					} else {
+						// Remove diff property for added/changed nodes
+						setNodes(
+							nodes.map((n) =>
+								n.id === nodeIdStr
+									? { ...n, data: { ...n.data, diff: undefined } }
+									: n
+							)
+						);
+					}
+				},
+			},
+			rejectDiff: {
+				name: 'rejectDiff',
+				description: 'Reject a diff for a node',
+				parameters: [
+					{
+						name: 'nodeId',
+						type: 'string',
+						description: 'The ID of the node to reject the diff for',
+					},
+				],
+				execute: (currentNodes, nodeId) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					const node = nodes.find((n) => n.id === nodeId);
+
+					if (!node || !node.data.diff) return;
+
+					if (node.data.diff === 'added') {
+						// Remove newly added nodes
+						setNodes(nodes.filter((n) => n.id !== nodeId));
+					} else {
+						// Just remove diff property for removed/changed nodes
+						setNodes(
+							nodes.map((n) =>
+								n.id === nodeId
+									? { ...n, data: { ...n.data, diff: undefined } }
+									: n
+							)
+						);
+					}
+				},
+			},
+			acceptAllDiffs: {
+				name: 'acceptAllDiffs',
+				description: 'Accept all pending diffs',
+				parameters: [],
+				execute: async (currentNodes) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+					const nodesWithDiffs = nodes.filter((n) => n.data.diff);
+
+					// Process removals first
+					const removedNodeIds = nodesWithDiffs
+						.filter((n) => n.data.diff === 'removed')
+						.map((n) => n.id);
+
+					for (const nodeId of removedNodeIds) {
+						await deleteNode(nodeId);
+					}
+
+					// Update nodes
+					const remainingNodes = nodes.filter(
+						(n) => !removedNodeIds.includes(n.id)
+					);
+					setNodes(
+						remainingNodes.map((n) => ({
+							...n,
+							data: { ...n.data, diff: undefined },
+						}))
+					);
+
+					// Remove edges for deleted nodes
+					if (removedNodeIds.length > 0) {
+						setEdges((edges) =>
+							edges.filter(
+								(edge) =>
+									!removedNodeIds.includes(edge.source) &&
+									!removedNodeIds.includes(edge.target)
+							)
+						);
+					}
+				},
+			},
+			rejectAllDiffs: {
+				name: 'rejectAllDiffs',
+				description: 'Reject all pending diffs',
+				parameters: [],
+				execute: (currentNodes) => {
+					const nodes = currentNodes as Node<FeatureNodeData>[];
+
+					// Remove added nodes and clear diffs from others
+					const filteredNodes = nodes.filter((n) => n.data.diff !== 'added');
+					setNodes(
+						filteredNodes.map((n) => ({
+							...n,
+							data: { ...n.data, diff: undefined },
+						}))
 					);
 				},
 			},
@@ -188,7 +320,7 @@ function FlowCanvas() {
 
 	// Custom handler for node changes that intercepts deletions
 	const handleNodesChange = React.useCallback(
-		async (changes: any[]) => {
+		async (changes: NodeChange[]) => {
 			// Check if any changes are deletions
 			const deletions = changes.filter((change) => change.type === 'remove');
 

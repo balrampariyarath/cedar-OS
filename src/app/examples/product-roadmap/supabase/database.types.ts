@@ -50,7 +50,21 @@ export type Database = {
             foreignKeyName: "edges_source_fkey"
             columns: ["source"]
             isOneToOne: false
+            referencedRelation: "active_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_source_fkey"
+            columns: ["source"]
+            isOneToOne: false
             referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_target_fkey"
+            columns: ["target"]
+            isOneToOne: false
+            referencedRelation: "active_nodes"
             referencedColumns: ["id"]
           },
           {
@@ -65,45 +79,149 @@ export type Database = {
       nodes: {
         Row: {
           comments: Json | null
+          deleted: boolean | null
           description: string | null
+          details: string | null
+          handle_labels: Json | null
+          height: number | null
           id: string
+          node_type: string | null
+          package_version: string | null
           position_x: number
           position_y: number
           status: string | null
           title: string
           type: string
           upvotes: number | null
+          width: number | null
         }
         Insert: {
           comments?: Json | null
+          deleted?: boolean | null
           description?: string | null
+          details?: string | null
+          handle_labels?: Json | null
+          height?: number | null
           id: string
+          node_type?: string | null
+          package_version?: string | null
           position_x: number
           position_y: number
           status?: string | null
           title: string
           type: string
           upvotes?: number | null
+          width?: number | null
         }
         Update: {
           comments?: Json | null
+          deleted?: boolean | null
           description?: string | null
+          details?: string | null
+          handle_labels?: Json | null
+          height?: number | null
           id?: string
+          node_type?: string | null
+          package_version?: string | null
           position_x?: number
           position_y?: number
           status?: string | null
           title?: string
           type?: string
           upvotes?: number | null
+          width?: number | null
+        }
+        Relationships: []
+      }
+      todos: {
+        Row: {
+          category: string
+          completed: boolean | null
+          created_at: string | null
+          date: string
+          id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          completed?: boolean | null
+          created_at?: string | null
+          date: string
+          id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          completed?: boolean | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
     }
     Views: {
-      [_ in never]: never
+      active_nodes: {
+        Row: {
+          comments: Json | null
+          deleted: boolean | null
+          description: string | null
+          details: string | null
+          id: string | null
+          position_x: number | null
+          position_y: number | null
+          status: string | null
+          title: string | null
+          type: string | null
+          upvotes: number | null
+        }
+        Insert: {
+          comments?: Json | null
+          deleted?: boolean | null
+          description?: string | null
+          details?: string | null
+          id?: string | null
+          position_x?: number | null
+          position_y?: number | null
+          status?: string | null
+          title?: string | null
+          type?: string | null
+          upvotes?: number | null
+        }
+        Update: {
+          comments?: Json | null
+          deleted?: boolean | null
+          description?: string | null
+          details?: string | null
+          id?: string | null
+          position_x?: number | null
+          position_y?: number | null
+          status?: string | null
+          title?: string | null
+          type?: string | null
+          upvotes?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_active_edges: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          source: string
+          source_handle: string
+          target: string
+          target_handle: string
+          type: string
+          animated: boolean
+          marker_end: Json
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
