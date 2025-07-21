@@ -300,33 +300,30 @@ export const ChatInput: React.FC<{
 
 				{/* Chat editor row */}
 				<div className='relative w-full h-fit' id='cedar-chat-input'>
-					{/* Chat editor row */}
-					<div className='relative w-full h-fit' id='cedar-chat-input'>
-						{voice.isListening || voice.isSpeaking ? (
-							<div className='py-2 items-center justify-center w-full'>
-								<VoiceIndicator
-									voiceState={{
-										isListening: voice.isListening,
-										isSpeaking: voice.isSpeaking,
-										voiceError: voice.voiceError,
-										voicePermissionStatus: voice.voicePermissionStatus,
-									}}
+					{voice.isListening || voice.isSpeaking ? (
+						<div className='py-2 items-center justify-center w-full'>
+							<VoiceIndicator
+								voiceState={{
+									isListening: voice.isListening,
+									isSpeaking: voice.isSpeaking,
+									voiceError: voice.voiceError,
+									voicePermissionStatus: voice.voicePermissionStatus,
+								}}
+							/>
+						</div>
+					) : (
+						<div className='flex items-center'>
+							<motion.div
+								layoutId='chatInput'
+								className='flex-1 justify-center py-3'
+								aria-label='Message input'>
+								<EditorContent
+									editor={editor}
+									className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none'
 								/>
-							</div>
-						) : (
-							<div className='flex items-center'>
-								<motion.div
-									layoutId='chatInput'
-									className='flex-1 justify-center py-3'
-									aria-label='Message input'>
-									<EditorContent
-										editor={editor}
-										className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none'
-									/>
-								</motion.div>
-							</div>
-						)}
-					</div>
+							</motion.div>
+						</div>
+					)}
 				</div>
 
 				{/* Bottom rows. Contains tools and send chat button */}

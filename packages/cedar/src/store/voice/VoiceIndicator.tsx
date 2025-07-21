@@ -25,8 +25,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
 			<motion.div
 				initial={{ opacity: 0, y: 10 }}
 				animate={{ opacity: 1, y: 0 }}
-				exit={{ opacity: 0, y: 10 }}
-				className=''>
+				exit={{ opacity: 0, y: 10 }}>
 				<div className='flex items-center gap-2 justify-center'>
 					{isListening && (
 						<>

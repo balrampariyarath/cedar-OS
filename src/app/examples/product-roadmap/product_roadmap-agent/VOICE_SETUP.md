@@ -73,7 +73,7 @@ By default, the voice endpoint is set to `http://localhost:4111/chat/voice`. To 
 
 ```typescript
 // In your component
-voice.setVoiceEndpoint('http://localhost:3456/api/chat/voice');
+voice.setVoiceEndpoint('http://localhost:4111/api/chat/voice');
 ```
 
 ### Using Text-Only Mode
@@ -88,7 +88,7 @@ voice.updateVoiceSettings({
 });
 
 // Set the text endpoint
-voice.setVoiceEndpoint('http://localhost:3456/api/chat/voice-to-text');
+voice.setVoiceEndpoint('http://localhost:4111/api/chat/voice-to-text');
 ```
 
 ## Running the Agent
@@ -99,11 +99,11 @@ voice.setVoiceEndpoint('http://localhost:3456/api/chat/voice-to-text');
    npm run dev
    ```
 
-2. The agent will be available at `http://localhost:3456`
+2. The agent will be available at `http://localhost:4111`
 
 3. Voice endpoints:
-   - Full voice with transcript: `POST http://localhost:3456/api/chat/voice`
-   - Text response only: `POST http://localhost:3456/api/chat/voice-to-text`
+   - Full voice with transcript: `POST http://localhost:4111/api/chat/voice`
+   - Text response only: `POST http://localhost:4111/api/chat/voice-to-text`
 
 ## Testing Voice
 
@@ -119,7 +119,7 @@ sox -d -r 16000 -c 1 -b 16 test.wav trim 0 5
 ffmpeg -i test.wav -c:a libopus test.webm
 
 # Send to agent
-curl -X POST http://localhost:3456/api/chat/voice \
+curl -X POST http://localhost:4111/api/chat/voice \
   -F "audio=@test.webm" \
   -H "Accept: application/json"
 ```
