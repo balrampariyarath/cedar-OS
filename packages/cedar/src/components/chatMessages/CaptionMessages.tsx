@@ -72,7 +72,7 @@ const CaptionMessages: React.FC<CaptionMessagesProps> = ({
 			const dialogueMsg = latestMessage as DialogueOptionsMessage;
 			return (
 				<div className='flex flex-col space-y-3'>
-					{dialogueMsg.options.map((opt: any, idx: number) => (
+					{dialogueMsg.options.map((opt, idx) => (
 						<Flat3dButton
 							key={idx}
 							id={`dialogue-option-btn-${idx}`}
@@ -104,7 +104,7 @@ const CaptionMessages: React.FC<CaptionMessagesProps> = ({
 					<div className='mb-2'>
 						<Ticker
 							hoverFactor={0}
-							items={tickerMsg.buttons.map((button: any, bidx: number) => (
+							items={tickerMsg.buttons.map((button, bidx) => (
 								<Flat3dContainer
 									key={bidx}
 									whileHover={{ scale: 1.05 }}
@@ -150,7 +150,7 @@ const CaptionMessages: React.FC<CaptionMessagesProps> = ({
 			return (
 				<div className='w-full'>
 					<div className='flex space-x-2 w-full'>
-						{multipleChoiceMsg.choices.map((choice: any, idx: number) => (
+						{multipleChoiceMsg.choices.map((choice, idx) => (
 							<Flat3dButton
 								key={idx}
 								id={`multiple-choice-btn-${idx}`}
@@ -191,7 +191,7 @@ const CaptionMessages: React.FC<CaptionMessagesProps> = ({
 						min={sliderMsg.min}
 						max={sliderMsg.max}
 						step={1}
-						onComplete={(val: any) => sliderMsg.onChange?.(val, store)}
+						onComplete={(val) => sliderMsg.onChange?.(val, store)}
 					/>
 				</div>
 			);

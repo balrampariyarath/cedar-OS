@@ -345,14 +345,14 @@ function FeatureNodeComponent({
 				statusBackgroundColor[status]
 					? statusBackgroundColor[status]
 					: 'bg-white'
-			} ${isResizing ? 'select-none' : ''}`}
+			} ${isResizing ? 'select-none' : ''} flex flex-col`}
 			style={{
 				width: `${nodeSize.width}px`,
 				height: nodeSize.height === 'auto' ? 'auto' : `${nodeSize.height}px`,
 				minWidth: '200px',
 				minHeight: '150px',
 			}}>
-			<div className='mb-2'>
+			<div className='mb-2 flex-none'>
 				<div className='flex items-center justify-between gap-2 mb-1'>
 					{editingTitle ? (
 						<input
@@ -461,22 +461,24 @@ function FeatureNodeComponent({
 							setEditingDescription(false);
 						}
 					}}
-					rows={3}
-					className='w-full text-xs text-gray-600 dark:text-gray-300 border border-gray-300 rounded p-1'
+					className='w-full h-full text-xs text-gray-600 dark:text-gray-300 border border-gray-300 rounded p-1 flex-1 resize-none'
+					style={{ minHeight: '60px' }}
 				/>
 			) : (
 				<p
-					className='mb-3 text-xs text-gray-600 dark:text-gray-300 line-clamp-3'
+					className='mb-3 text-xs text-gray-600 dark:text-gray-300 flex-1 overflow-y-auto whitespace-pre-wrap'
 					onDoubleClick={() => setEditingDescription(true)}
 					tabIndex={0}
 					onKeyDown={(e) => {
 						if (e.key === 'Enter') setEditingDescription(true);
 					}}
 					aria-label='Edit description'>
-					{description}
+					<ReactMarkdown remarkPlugins={[remarkGfm]}>
+						{description}
+					</ReactMarkdown>
 				</p>
 			)}
-			<div className='flex items-center justify-between text-[11px] text-gray-500'>
+			<div className='flex items-center justify-between text-[11px] text-gray-500 flex-none'>
 				<div className='flex items-center gap-2'>
 					<button
 						onClick={handleUpvote}
@@ -501,14 +503,14 @@ function FeatureNodeComponent({
 				</div>
 			</div>
 			{expanded && (
-				<div className='mt-2 text-xs text-gray-700'>
+				<div className='mt-2 text-xs text-gray-700 flex-none overflow-y-auto'>
 					<ReactMarkdown remarkPlugins={[remarkGfm]}>
 						{data.details || 'No details provided.'}
 					</ReactMarkdown>
 				</div>
 			)}
 			{showComments && (
-				<div className='mt-2 space-y-1'>
+				<div className='mt-2 space-y-1 flex-none'>
 					{comments.map((c) => (
 						<div key={c.id} className='text-xs'>
 							<strong>{c.author}:</strong> {c.text}

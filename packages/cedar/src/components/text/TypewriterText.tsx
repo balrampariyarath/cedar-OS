@@ -11,6 +11,7 @@ interface TypewriterTextProps {
 	showCursor?: boolean;
 	onTypingStart?: () => void;
 	onTypingComplete?: () => void;
+	blinking?: boolean;
 }
 
 export const TypewriterText: React.FC<TypewriterTextProps> = ({
@@ -20,6 +21,7 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
 	showCursor = true,
 	onTypingStart,
 	onTypingComplete,
+	blinking = false,
 }) => {
 	const totalDuration = charDelay * text.length;
 	const [displayedText, setDisplayedText] = useState('');
@@ -54,12 +56,17 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
 					<motion.span
 						className='inline-block w-[2px] h-[1em] ml-1'
 						style={{ backgroundColor: styling.color, willChange: 'opacity' }}
-						// animate={{ opacity: [1, 1, 0, 0] }}
-						// transition={{
-						// 	duration: 1,
-						// 	repeat: Infinity,
-						// 	times: [0, 0.5, 0.5, 1],
-						// }}
+						// This makes the cursor blink.
+						animate={blinking ? { opacity: [1, 1, 0, 0] } : undefined}
+						transition={
+							blinking
+								? {
+										duration: 1,
+										repeat: Infinity,
+										times: [0, 0.5, 0.5, 1],
+								  }
+								: undefined
+						}
 					/>
 				)}
 			</motion.span>
