@@ -1,27 +1,29 @@
-import { useCedarStore } from '@/store/CedarStore';
+import { useCedarStore, useVoice } from '@/store/CedarStore';
 import { EditorContent } from '@tiptap/react';
 import {
 	Bug,
 	Code,
 	History,
 	Image,
-	MessageCircleQuestionIcon,
 	Mic,
 	Package,
 	SendHorizontal,
 	Settings,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
+import '@/components/chatInput/ChatInput.css';
+import ChatBubbles from '@/components/chatMessages/ChatBubbles';
 import Container3D from '@/components/containers/Container3D';
 import Container3DButton from '@/components/containers/Container3DButton';
-import '@/components/chatInput/ChatInput.css';
-import { useCedarEditor } from './useCedarEditor';
-import { ContextBadgeRow } from './ContextBadgeRow';
 import { useChatInput } from '@/store/CedarStore';
-import ChatBubbles from '@/components/chatMessages/ChatBubbles';
+import { VoiceIndicator } from '../../store/voice/VoiceIndicator';
+import { ContextBadgeRow } from './ContextBadgeRow';
+import { useCedarEditor } from './useCedarEditor';
+
+// Create a voice-enabled store instance
 
 // ChatContainer component with position options
 export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
@@ -72,6 +74,55 @@ export const ChatInput: React.FC<{
 		onFocus: handleFocus,
 		onBlur: handleBlur,
 	});
+
+	// Initialize voice functionality
+	const voice = useVoice();
+
+	// Set up voice endpoint on mount
+	useEffect(() => {
+		// Configure the voice endpoint - adjust this to your agent's endpoint
+		voice.setVoiceEndpoint('http://localhost:4111/chat/voice');
+
+		// Cleanup on unmount
+		return () => {
+			voice.resetVoiceState();
+		};
+	}, []);
+
+	// Handle voice toggle
+	const handleVoiceToggle = useCallback(async () => {
+		// Check if voice is supported
+		if (!voice.checkVoiceSupport()) {
+			console.error('Voice features are not supported in this browser');
+			return;
+		}
+
+		// Request permission if needed
+		if (voice.voicePermissionStatus === 'prompt') {
+			await voice.requestVoicePermission();
+		}
+
+		// Toggle voice if permission is granted
+		if (voice.voicePermissionStatus === 'granted') {
+			voice.toggleVoice();
+		} else if (voice.voicePermissionStatus === 'denied') {
+			console.error('Microphone access denied');
+		}
+	}, [voice]);
+
+	// Get mic button appearance based on voice state
+	const getMicButtonClass = () => {
+		if (voice.isListening) {
+			return 'p-1 text-red-500 hover:text-red-600 cursor-pointer animate-pulse';
+		}
+		if (voice.isSpeaking) {
+			return 'p-1 text-green-500 hover:text-green-600 cursor-pointer';
+		}
+		if (voice.voicePermissionStatus === 'denied') {
+			return 'p-1 text-gray-400 cursor-not-allowed';
+		}
+		return 'p-1 text-gray-600 hover:text-black cursor-pointer';
+	};
 
 	// Focus the editor when isInputFocused changes to allow for controlled focusing
 	useEffect(() => {
@@ -249,16 +300,32 @@ export const ChatInput: React.FC<{
 
 				{/* Chat editor row */}
 				<div className='relative w-full h-fit' id='cedar-chat-input'>
-					<div className='flex items-center'>
-						<motion.div
-							layoutId='chatInput'
-							className='flex-1 justify-center py-3'
-							aria-label='Message input'>
-							<EditorContent
-								editor={editor}
-								className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none'
-							/>
-						</motion.div>
+					{/* Chat editor row */}
+					<div className='relative w-full h-fit' id='cedar-chat-input'>
+						{voice.isListening ? (
+							<div className='py-2 items-center justify-center w-full'>
+								<VoiceIndicator
+									voiceState={{
+										isListening: voice.isListening,
+										isSpeaking: voice.isSpeaking,
+										voiceError: voice.voiceError,
+										voicePermissionStatus: voice.voicePermissionStatus,
+									}}
+								/>
+							</div>
+						) : (
+							<div className='flex items-center'>
+								<motion.div
+									layoutId='chatInput'
+									className='flex-1 justify-center py-3'
+									aria-label='Message input'>
+									<EditorContent
+										editor={editor}
+										className='prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none'
+									/>
+								</motion.div>
+							</div>
+						)}
 					</div>
 				</div>
 
@@ -269,7 +336,21 @@ export const ChatInput: React.FC<{
 					<div className='flex items-center gap-2'>
 						<button
 							type='button'
-							className='p-1 text-gray-600 hover:text-black cursor-pointer'>
+							className={getMicButtonClass()}
+							onClick={handleVoiceToggle}
+							disabled={
+								voice.voicePermissionStatus === 'denied' ||
+								voice.voicePermissionStatus === 'not-supported'
+							}
+							title={
+								voice.isListening
+									? 'Stop recording'
+									: voice.isSpeaking
+									? 'Speaking...'
+									: voice.voicePermissionStatus === 'denied'
+									? 'Microphone access denied'
+									: 'Start voice chat'
+							}>
 							<Mic className='w-4 h-4' />
 						</button>
 						<button

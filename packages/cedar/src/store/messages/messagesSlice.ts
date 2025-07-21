@@ -5,7 +5,6 @@ import type {
 	MessageInput,
 	MessageRenderer,
 	MessageRendererRegistry,
-	MessageRendererConfig,
 } from './types';
 
 // Define the messages slice
