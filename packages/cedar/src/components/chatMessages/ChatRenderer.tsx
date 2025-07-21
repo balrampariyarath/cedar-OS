@@ -112,11 +112,12 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 			);
 
 		case 'todolist':
+			const messageStyles = getMessageStyles(message.role);
 			return (
 				<div className='w-full'>
 					<div
-						{...getMessageStyles(message.role)}
-						className={`${getMessageStyles(message.role).className} w-full`}>
+						{...messageStyles.style}
+						className={`${messageStyles.className} w-full`}>
 						<TodoList message={message} />
 					</div>
 				</div>

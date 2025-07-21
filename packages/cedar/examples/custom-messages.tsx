@@ -55,16 +55,16 @@ const ImageMessageRenderer: React.FC<{
 	message: MessageByType<'image', CustomMessages>;
 }> = ({ message }) => {
 	return (
-		<div className='image-message rounded-lg overflow-hidden'>
+		<div className='p-4 bg-gray-50 rounded-lg'>
 			<img
 				src={message.imageUrl}
 				alt={message.alt || 'Image'}
 				width={message.width}
 				height={message.height}
-				className='max-w-full h-auto'
+				className='rounded-md shadow-md'
 			/>
-			{message.text && (
-				<p className='mt-2 text-sm text-gray-600'>{message.text}</p>
+			{message.content && (
+				<p className='mt-2 text-sm text-gray-600'>{message.content}</p>
 			)}
 		</div>
 	);
@@ -74,17 +74,15 @@ const CodeMessageRenderer: React.FC<{
 	message: MessageByType<'code', CustomMessages>;
 }> = ({ message }) => {
 	return (
-		<div className='code-message'>
+		<div className='p-4 bg-gray-900 text-gray-100 rounded-lg'>
 			{message.filename && (
-				<div className='bg-gray-800 text-gray-200 px-3 py-1 text-sm rounded-t-md'>
-					{message.filename}
-				</div>
+				<div className='text-xs text-gray-400 mb-2'>{message.filename}</div>
 			)}
-			<pre className='bg-gray-900 text-gray-100 p-4 rounded-b-md overflow-x-auto'>
+			<pre className='overflow-x-auto'>
 				<code className={`language-${message.language}`}>{message.code}</code>
 			</pre>
-			{message.text && (
-				<p className='mt-2 text-sm text-gray-600'>{message.text}</p>
+			{message.content && (
+				<p className='mt-2 text-sm text-gray-600'>{message.content}</p>
 			)}
 		</div>
 	);
@@ -93,16 +91,16 @@ const CodeMessageRenderer: React.FC<{
 const ChartMessageRenderer: React.FC<{
 	message: MessageByType<'chart', CustomMessages>;
 }> = ({ message }) => {
-	// This is a placeholder - you would integrate with a real chart library
+	// Simplified chart rendering
 	return (
-		<div className='chart-message bg-white p-4 rounded-lg shadow'>
+		<div className='p-4 bg-white border rounded-lg'>
 			<div className='h-64 bg-gray-100 rounded flex items-center justify-center'>
-				<p className='text-gray-500'>
-					{message.chartType} chart would render here
-				</p>
+				<span className='text-gray-500'>
+					{message.chartType} chart: {message.data.length} data points
+				</span>
 			</div>
-			{message.text && (
-				<p className='mt-2 text-sm text-gray-600'>{message.text}</p>
+			{message.content && (
+				<p className='mt-2 text-sm text-gray-600'>{message.content}</p>
 			)}
 		</div>
 	);
@@ -133,14 +131,14 @@ export const CustomMessagesExample: React.FC = () => {
 		addMessage({
 			type: 'text',
 			role: 'user',
-			text: 'Show me an example of custom messages',
+			content: 'Show me an example of custom messages',
 		});
 
 		// Image message (custom type)
 		addMessage({
 			type: 'image',
 			role: 'bot',
-			text: 'Here is an example image:',
+			content: 'Here is an example image:',
 			imageUrl: 'https://via.placeholder.com/400x300',
 			alt: 'Example placeholder image',
 			width: 400,
@@ -151,7 +149,7 @@ export const CustomMessagesExample: React.FC = () => {
 		addMessage({
 			type: 'code',
 			role: 'bot',
-			text: 'Here is the code example you requested:',
+			content: 'Here is the code example you requested:',
 			language: 'typescript',
 			filename: 'example.ts',
 			code: `// Custom message type definition
@@ -165,7 +163,7 @@ type ImageMessage = TypedMessage<'image', {
 		addMessage({
 			type: 'chart',
 			role: 'bot',
-			text: 'Sales data for the last quarter:',
+			content: 'Sales data for the last quarter:',
 			chartType: 'bar',
 			data: [
 				{ month: 'Jan', sales: 100 },

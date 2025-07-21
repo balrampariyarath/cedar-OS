@@ -1,9 +1,5 @@
 import { useStyling } from '@/store/CedarStore';
-import {
-	MessageText,
-	StorylineMessage,
-	StorylineSection,
-} from '@/store/messages/types';
+import { StorylineMessage, StorylineSection } from '@/store/messages/types';
 import React, { useRef, useEffect, useState } from 'react';
 import StorylineEdge from './StorylineEdge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -99,41 +95,8 @@ const Storyline: React.FC<StorylineProps> = ({ message }) => {
 	}, [message.sections, visibleSections]);
 
 	// Render content with inline actions
-	const renderContentWithActions = (text: MessageText) => {
-		if (typeof text === 'string') {
-			return <span>{text}</span>;
-		}
-
-		if (Array.isArray(text)) {
-			return (
-				<>
-					{text.map((item, index) => {
-						if (typeof item === 'string') {
-							return <span key={index}>{item} </span>;
-						} else if (typeof item === 'object' && item.type === 'action') {
-							return (
-								<span
-									key={index}
-									className='inline-flex items-center gap-1 px-2 py-1 m-1 text-xs font-medium rounded hover:bg-opacity-80'
-									style={{
-										backgroundColor: styling.color,
-										color: styling.textColor,
-									}}
-									onClick={() => {
-										/* Action handler would go here */
-									}}>
-									{item.icon && <span>{item.icon}</span>}
-									{item.text}
-								</span>
-							);
-						}
-						return null;
-					})}
-				</>
-			);
-		}
-
-		return null;
+	const renderContentWithActions = (text: string) => {
+		return <span>{text}</span>;
 	};
 
 	// Animation variants
@@ -284,7 +247,7 @@ const Storyline: React.FC<StorylineProps> = ({ message }) => {
 					transition={{ duration: 0.8 }}>
 					{' '}
 					{/* Increased from 0.5 to 0.8 */}
-					{renderContentWithActions(message.text)}
+					{renderContentWithActions(message.content)}
 				</motion.div>
 
 				{/* Render edges first (underneath sections) */}
