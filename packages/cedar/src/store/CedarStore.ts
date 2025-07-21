@@ -6,6 +6,7 @@ import { CedarStore } from './types';
 import { createStateSlice } from '@/store/stateSlice/stateSlice';
 import { createMessagesSlice } from '@/store/messages/messagesSlice';
 import { createAgentConnectionSlice } from '@/store/agentConnection/agentConnectionSlice';
+import { createVoiceSlice } from '@/store/voice/voiceSlice';
 
 // Create the combined store (default for backwards compatibility)
 export const useCedarStore = create<CedarStore>()(
@@ -16,6 +17,7 @@ export const useCedarStore = create<CedarStore>()(
 			...createStateSlice(...a),
 			...createMessagesSlice(...a),
 			...createAgentConnectionSlice(...a),
+			...createVoiceSlice(...a),
 		}),
 		{
 			name: 'cedar-store',
@@ -91,3 +93,30 @@ export type {
 	MessageByType,
 	MessageRendererConfig,
 } from './messages/types';
+
+// Export voice slice and utilities
+export { createVoiceSlice } from './voice/voiceSlice';
+export type { VoiceSlice, VoiceState, VoiceActions } from './voice/voiceSlice';
+
+// Export a hook for voice functionality
+export const useVoice = () => ({
+	isVoiceEnabled: useCedarStore((state) => state.isVoiceEnabled),
+	isListening: useCedarStore((state) => state.isListening),
+	isSpeaking: useCedarStore((state) => state.isSpeaking),
+	voiceEndpoint: useCedarStore((state) => state.voiceEndpoint),
+	voicePermissionStatus: useCedarStore((state) => state.voicePermissionStatus),
+	voiceError: useCedarStore((state) => state.voiceError),
+	voiceSettings: useCedarStore((state) => state.voiceSettings),
+
+	requestVoicePermission: useCedarStore(
+		(state) => state.requestVoicePermission
+	),
+	checkVoiceSupport: useCedarStore((state) => state.checkVoiceSupport),
+	startListening: useCedarStore((state) => state.startListening),
+	stopListening: useCedarStore((state) => state.stopListening),
+	toggleVoice: useCedarStore((state) => state.toggleVoice),
+	setVoiceEndpoint: useCedarStore((state) => state.setVoiceEndpoint),
+	updateVoiceSettings: useCedarStore((state) => state.updateVoiceSettings),
+	setVoiceError: useCedarStore((state) => state.setVoiceError),
+	resetVoiceState: useCedarStore((state) => state.resetVoiceState),
+});

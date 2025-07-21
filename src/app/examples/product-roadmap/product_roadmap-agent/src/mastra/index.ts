@@ -5,6 +5,8 @@ import { productRoadmapAgent } from './agents/product-roadmap-agent';
 import { registerApiRoute } from '@mastra/core/server';
 import { z } from 'zod';
 import type { Context } from 'hono';
+import { handleVoiceMessage, handleVoiceToText } from './voice';
+import { Agent } from '@mastra/core';
 
 // Define the chat request schema for Cedar compatibility
 const ChatRequestSchema = z.object({
@@ -24,7 +26,7 @@ async function handleChatMessage(c: Context) {
 		const { prompt, temperature, maxTokens, systemPrompt } =
 			ChatRequestSchema.parse(body);
 
-		const agent = c.get('mastra').getAgent('productRoadmapAgent');
+		const agent = c.get('mastra').getAgent('productRoadmapAgent') as Agent;
 		if (!agent) {
 			return c.json({ error: 'Agent not found' }, 404);
 		}
@@ -40,6 +42,10 @@ async function handleChatMessage(c: Context) {
 		const response = await agent.generate(messages, {
 			temperature,
 			maxTokens,
+			maxSteps: 1,
+			onStepFinish: ({ text, toolCalls, toolResults }) => {
+				console.log('Step completed:', { text, toolCalls, toolResults });
+			},
 		});
 
 		// Return in Cedar's expected format
@@ -288,6 +294,116 @@ const apiRoutes = [
 								},
 							},
 							required: ['prompt'],
+						},
+					},
+				},
+			},
+		},
+	}),
+	registerApiRoute('/chat/voice', {
+		method: 'POST',
+		handler: handleVoiceMessage,
+		openapi: {
+			requestBody: {
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object',
+							properties: {
+								audio: {
+									type: 'string',
+									format: 'binary',
+									description: 'Audio file (WebM, MP3, etc.)',
+								},
+								settings: {
+									type: 'string',
+									description: 'JSON string of voice settings',
+								},
+							},
+							required: ['audio'],
+						},
+					},
+				},
+			},
+			responses: {
+				'200': {
+					description: 'JSON response with transcription, text, and audio data',
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									transcription: {
+										type: 'string',
+										description: 'The transcribed text from the audio',
+									},
+									text: {
+										type: 'string',
+										description: 'The agent response',
+									},
+									usage: {
+										type: 'object',
+										description: 'Token usage information',
+									},
+									audioData: {
+										type: 'string',
+										description: 'Base64 encoded audio response',
+									},
+									audioFormat: {
+										type: 'string',
+										description: 'MIME type of the audio data',
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}),
+	registerApiRoute('/chat/voice-to-text', {
+		method: 'POST',
+		handler: handleVoiceToText,
+		openapi: {
+			requestBody: {
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object',
+							properties: {
+								audio: {
+									type: 'string',
+									format: 'binary',
+									description: 'Audio file (WebM, MP3, etc.)',
+								},
+							},
+							required: ['audio'],
+						},
+					},
+				},
+			},
+			responses: {
+				'200': {
+					description: 'Text response with transcription',
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									transcription: {
+										type: 'string',
+										description: 'The transcribed text from the audio',
+									},
+									text: {
+										type: 'string',
+										description: 'The agent response',
+									},
+									usage: {
+										type: 'object',
+										description: 'Token usage information',
+									},
+								},
+							},
 						},
 					},
 				},
