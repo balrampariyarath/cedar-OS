@@ -9,6 +9,8 @@ import {
 	Package,
 	SendHorizontal,
 	Settings,
+	CheckCircle,
+	XCircle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { useCallback, useEffect } from 'react';
@@ -74,6 +76,15 @@ export const ChatInput: React.FC<{
 		onFocus: handleFocus,
 		onBlur: handleBlur,
 	});
+
+	// Check if there are any nodes with diffs
+	const nodesState = useCedarStore((state) => state.registeredStates.nodes);
+	const hasDiffs = React.useMemo(() => {
+		if (!nodesState?.value || !Array.isArray(nodesState.value)) return false;
+		return nodesState.value.some(
+			(node: { data?: { diff?: string } }) => node.data?.diff
+		);
+	}, [nodesState]);
 
 	// Initialize voice functionality
 	const voice = useVoice();
@@ -165,6 +176,7 @@ export const ChatInput: React.FC<{
 				comments: [],
 				status: 'planned' as const,
 				nodeType: 'feature' as const,
+				diff: 'added' as const,
 			},
 		};
 		executeCustomSetter('nodes', 'addNode', newFeature);
@@ -183,9 +195,20 @@ export const ChatInput: React.FC<{
 				comments: [],
 				status: 'backlog' as const,
 				nodeType: 'bug' as const,
+				diff: 'added' as const,
 			},
 		};
 		executeCustomSetter('nodes', 'addNode', newIssue);
+	};
+
+	const handleAcceptAllDiffs = () => {
+		const executeCustomSetter = useCedarStore.getState().executeCustomSetter;
+		executeCustomSetter('nodes', 'acceptAllDiffs');
+	};
+
+	const handleRejectAllDiffs = () => {
+		const executeCustomSetter = useCedarStore.getState().executeCustomSetter;
+		executeCustomSetter('nodes', 'rejectAllDiffs');
 	};
 
 	const handleTestOverride = () => {
@@ -267,6 +290,28 @@ export const ChatInput: React.FC<{
 							Add Bug
 						</span>
 					</Container3DButton>
+					{hasDiffs && (
+						<>
+							<Container3DButton
+								id='accept-all-diffs-btn'
+								childClassName='p-1.5'
+								onClick={handleAcceptAllDiffs}>
+								<span className='flex items-center gap-1'>
+									<CheckCircle className='w-4 h-4 text-green-600' />
+									Accept All
+								</span>
+							</Container3DButton>
+							<Container3DButton
+								id='reject-all-diffs-btn'
+								childClassName='p-1.5'
+								onClick={handleRejectAllDiffs}>
+								<span className='flex items-center gap-1'>
+									<XCircle className='w-4 h-4 text-red-600' />
+									Reject All
+								</span>
+							</Container3DButton>
+						</>
+					)}
 					<Container3DButton
 						id='test-override-btn'
 						childClassName='p-1.5'

@@ -17,7 +17,7 @@
 		"lint": "next lint",
 		"pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
 		"test": "jest",
-		"ust": "supabase gen types typescript --project-id ttjnurbqxigvmtlsvclx --schema public > .src/app/examples/product-roadmap/supabase/database.types.ts"
+		"ust": "supabase gen types typescript --project-id ttjnurbqxigvmtlsvclx --schema public > src/app/examples/product-roadmap/supabase/database.types.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "^1.2.12",

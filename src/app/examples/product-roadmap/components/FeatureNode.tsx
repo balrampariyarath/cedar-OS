@@ -3,7 +3,10 @@
 import { memo, useState, useEffect, useRef } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Handle, Position, useReactFlow } from 'reactflow';
-import { saveNodes } from '@/app/examples/product-roadmap/supabase/nodes';
+import {
+	saveNodes,
+	deleteNode,
+} from '@/app/examples/product-roadmap/supabase/nodes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +17,9 @@ import {
 	Lightbulb,
 	Component,
 	Wrench,
+	Check,
+	X,
+	Bot,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -41,7 +47,9 @@ export type NodeType =
 	| 'bug'
 	| 'improvement'
 	| 'component'
-	| 'utils';
+	| 'utils'
+	| 'agent helper';
+export type DiffType = 'added' | 'removed' | 'changed';
 
 import { z } from 'zod';
 
@@ -58,11 +66,19 @@ export const FeatureNodeDataSchema = z.object({
 	),
 	status: z.enum(['done', 'planned', 'backlog', 'in progress']),
 	nodeType: z
-		.enum(['feature', 'bug', 'improvement', 'component', 'utils'])
+		.enum([
+			'feature',
+			'bug',
+			'improvement',
+			'component',
+			'utils',
+			'agent helper',
+		])
 		.default('feature'),
 	width: z.number().optional(),
 	height: z.number().optional(),
 	packageVersion: z.string().optional(),
+	diff: z.enum(['added', 'removed', 'changed']).optional(),
 }) satisfies z.ZodType<FeatureNodeData>;
 
 export interface FeatureNodeData {
@@ -77,6 +93,7 @@ export interface FeatureNodeData {
 	width?: number;
 	height?: number;
 	packageVersion?: string;
+	diff?: DiffType;
 }
 
 /**
@@ -99,6 +116,7 @@ function FeatureNodeComponent({
 		width = 320,
 		height,
 		packageVersion,
+		diff,
 	} = data;
 
 	// Inline editing state
@@ -106,7 +124,7 @@ function FeatureNodeComponent({
 	const [titleValue, setTitleValue] = useState(title);
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [descriptionValue, setDescriptionValue] = useState(description);
-	const { setNodes, getZoom } = useReactFlow();
+	const { setNodes, getZoom, getNodes } = useReactFlow();
 
 	// Resizing state
 	const [isResizing, setIsResizing] = useState(false);
@@ -307,15 +325,17 @@ function FeatureNodeComponent({
 		improvement: 'bg-cyan-400/70',
 		component: 'bg-blue-400/70',
 		utils: 'bg-orange-400/70',
+		'agent helper': 'bg-emerald-400/70',
 	};
 
 	// Icon mapping for node types
 	const nodeTypeIcon: Record<NodeType, React.ReactNode> = {
-		feature: <Package className='h-3 w-3' />,
+		feature: <Lightbulb className='h-3 w-3' />,
 		bug: <Bug className='h-3 w-3' />,
-		improvement: <Lightbulb className='h-3 w-3' />,
+		improvement: <Package className='h-3 w-3' />,
 		component: <Component className='h-3 w-3' />,
 		utils: <Wrench className='h-3 w-3' />,
+		'agent helper': <Bot className='h-3 w-3' />,
 	};
 
 	// Soft background colors for status
@@ -334,256 +354,346 @@ function FeatureNodeComponent({
 		'in progress',
 	];
 
+	// Handle diff actions
+	const handleAcceptDiff = async () => {
+		const nodes = getNodes();
+		const node = nodes.find((n) => n.id === id);
+		if (!node || !node.data.diff) return;
+
+		if (node.data.diff === 'removed') {
+			// Actually remove the node
+			await deleteNode(id);
+			setNodes((currentNodes) => currentNodes.filter((n) => n.id !== id));
+		} else {
+			// Remove diff property for added/changed nodes
+			setNodes((nds) =>
+				nds.map((n) =>
+					n.id === id ? { ...n, data: { ...n.data, diff: undefined } } : n
+				)
+			);
+		}
+	};
+
+	const handleRejectDiff = () => {
+		setNodes((nds) => {
+			const node = nds.find((n) => n.id === id);
+			if (!node || !node.data.diff) return nds;
+
+			if (node.data.diff === 'added') {
+				// Remove newly added nodes
+				return nds.filter((n) => n.id !== id);
+			} else {
+				// Just remove diff property for removed/changed nodes
+				return nds.map((n) =>
+					n.id === id ? { ...n, data: { ...n.data, diff: undefined } } : n
+				);
+			}
+		});
+	};
+
+	// Diff overlay colors
+	const diffOverlayColor: Record<DiffType, string> = {
+		added: 'bg-green-200/50',
+		removed: 'bg-red-200/50',
+		changed: 'bg-yellow-200/50',
+	};
+
 	// When selected, add an outer ring highlight without affecting inner layout
 	const borderClass = selected
 		? 'border border-gray-200 ring-4 ring-indigo-600'
 		: 'border border-gray-200';
 
 	return (
-		<div
-			className={`relative rounded-lg p-4 shadow-sm ${borderClass} ${
-				statusBackgroundColor[status]
-					? statusBackgroundColor[status]
-					: 'bg-white'
-			} ${isResizing ? 'select-none' : ''} flex flex-col`}
-			style={{
-				width: `${nodeSize.width}px`,
-				height: nodeSize.height === 'auto' ? 'auto' : `${nodeSize.height}px`,
-				minWidth: '200px',
-				minHeight: '150px',
-			}}>
-			<div className='mb-2 flex-none'>
-				<div className='flex items-center justify-between gap-2 mb-1'>
-					{editingTitle ? (
-						<input
-							autoFocus
-							value={titleValue}
-							onChange={(e) => setTitleValue(e.target.value)}
-							onBlur={() => {
-								commitTitle();
-								setEditingTitle(false);
-							}}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') {
-									commitTitle();
-									setEditingTitle(false);
-									e.currentTarget.blur();
-								}
-								if (e.key === 'Escape') {
-									setTitleValue(data.title);
-									setEditingTitle(false);
-								}
-							}}
-							className='w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded p-1'
-						/>
-					) : (
-						<h3
-							className='text-sm font-semibold text-gray-900 flex-1'
-							onDoubleClick={() => setEditingTitle(true)}
-							tabIndex={0}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') setEditingTitle(true);
-							}}
-							aria-label='Edit title'>
-							{title}
-						</h3>
-					)}
+		<>
+			{/* Diff action buttons - positioned outside/above the node */}
+			{diff && (
+				<div
+					className='absolute flex gap-1'
+					style={{
+						top: '-40px',
+						right: '0',
+						zIndex: 10,
+					}}>
 					<Button
 						variant='ghost'
-						size='icon'
-						className='h-6 w-6'
-						onClick={toggleExpanded}
-						aria-label={expanded ? 'Collapse details' : 'Expand details'}>
-						{expanded ? (
-							<ChevronUp className='h-4 w-4' />
-						) : (
-							<ChevronDown className='h-4 w-4' />
-						)}
+						size='sm'
+						className='h-8 bg-white hover:bg-green-100 shadow-sm border border-green-200'
+						onClick={handleAcceptDiff}
+						aria-label='Accept change'>
+						<Check className='h-4 w-4 text-green-600 mr-1' />
+						Accept
+					</Button>
+					<Button
+						variant='ghost'
+						size='sm'
+						className='h-8 bg-white hover:bg-red-100 shadow-sm border border-red-200'
+						onClick={handleRejectDiff}
+						aria-label='Reject change'>
+						<X className='h-4 w-4 text-red-600 mr-1' />
+						Reject
 					</Button>
 				</div>
-				<div className='flex items-center gap-1'>
-					<Badge className={nodeTypeColor[nodeType]} variant='secondary'>
-						<span className='flex items-center gap-1'>
-							{nodeTypeIcon[nodeType]}
-							{nodeType}
-						</span>
-					</Badge>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Badge
-								className={`${statusColor[status]} cursor-pointer hover:opacity-80`}
-								variant='secondary'
-								tabIndex={0}
-								role='button'
-								aria-label='Change status'>
-								{status}
-							</Badge>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align='start'>
-							{allStatuses.map((statusOption) => (
-								<DropdownMenuItem
-									key={statusOption}
-									onClick={() => handleStatusChange(statusOption)}
-									className='cursor-pointer'>
-									<Badge
-										className={`${statusColor[statusOption]} mr-2`}
-										variant='secondary'>
-										{statusOption}
-									</Badge>
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-					{status === 'done' && packageVersion && (
-						<Badge variant='outline' className='text-xs'>
-							v{packageVersion}
-						</Badge>
-					)}
-				</div>
-			</div>
-			{editingDescription ? (
-				<textarea
-					autoFocus
-					value={descriptionValue}
-					onChange={(e) => setDescriptionValue(e.target.value)}
-					onBlur={() => {
-						commitDescription();
-						setEditingDescription(false);
-					}}
-					onKeyDown={(e) => {
-						if (e.key === 'Enter' && !e.shiftKey) {
-							e.preventDefault();
-							commitDescription();
-							setEditingDescription(false);
-						}
-						if (e.key === 'Escape') {
-							setDescriptionValue(data.description);
-							setEditingDescription(false);
-						}
-					}}
-					className='w-full h-full text-xs text-gray-600 dark:text-gray-300 border border-gray-300 rounded p-1 flex-1 resize-none'
-					style={{ minHeight: '60px' }}
-				/>
-			) : (
-				<p
-					className='mb-3 text-xs text-gray-600 dark:text-gray-300 flex-1 overflow-y-auto whitespace-pre-wrap'
-					onDoubleClick={() => setEditingDescription(true)}
-					tabIndex={0}
-					onKeyDown={(e) => {
-						if (e.key === 'Enter') setEditingDescription(true);
-					}}
-					aria-label='Edit description'>
-					<ReactMarkdown remarkPlugins={[remarkGfm]}>
-						{description}
-					</ReactMarkdown>
-				</p>
 			)}
-			<div className='flex items-center justify-between text-[11px] text-gray-500 flex-none'>
-				<div className='flex items-center gap-2'>
-					<button
-						onClick={handleUpvote}
-						className='flex items-center gap-1'
-						aria-label='Upvote feature'
-						title='Upvote'>
-						👍 {upvotes}
-					</button>
-					<button
-						onClick={toggleComments}
-						className='flex items-center gap-1'
-						aria-label='Toggle comments'
-						tabIndex={0}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggleComments();
-							}
-						}}>
-						💬 {comments.length}
-					</button>
-				</div>
-			</div>
-			{expanded && (
-				<div className='mt-2 text-xs text-gray-700 flex-none overflow-y-auto'>
-					<ReactMarkdown remarkPlugins={[remarkGfm]}>
-						{data.details || 'No details provided.'}
-					</ReactMarkdown>
-				</div>
-			)}
-			{showComments && (
-				<div className='mt-2 space-y-1 flex-none'>
-					{comments.map((c) => (
-						<div key={c.id} className='text-xs'>
-							<strong>{c.author}:</strong> {c.text}
+
+			<div
+				className={`relative rounded-lg p-4 shadow-sm ${borderClass} ${
+					statusBackgroundColor[status]
+						? statusBackgroundColor[status]
+						: 'bg-white'
+				} ${isResizing ? 'select-none' : ''} flex flex-col`}
+				style={{
+					width: `${nodeSize.width}px`,
+					height: nodeSize.height === 'auto' ? 'auto' : `${nodeSize.height}px`,
+					minWidth: '200px',
+					minHeight: '150px',
+				}}>
+				{/* Diff overlay - covers entire node with higher z-index */}
+				{diff && (
+					<div
+						className={`absolute inset-0 rounded-lg pointer-events-none ${diffOverlayColor[diff]}`}
+						style={{ zIndex: 10 }}
+					/>
+				)}
+
+				{/* All content wrapped in a div with relative positioning */}
+				<div className='relative' style={{ zIndex: 1 }}>
+					<div className='mb-2 flex-none'>
+						<div className='flex items-center justify-between gap-2 mb-1'>
+							{editingTitle ? (
+								<input
+									autoFocus
+									value={titleValue}
+									onChange={(e) => setTitleValue(e.target.value)}
+									onBlur={() => {
+										commitTitle();
+										setEditingTitle(false);
+									}}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') {
+											commitTitle();
+											setEditingTitle(false);
+											e.currentTarget.blur();
+										}
+										if (e.key === 'Escape') {
+											setTitleValue(data.title);
+											setEditingTitle(false);
+										}
+									}}
+									className='w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded p-1'
+								/>
+							) : (
+								<h3
+									className='text-sm font-semibold text-gray-900 flex-1'
+									onDoubleClick={() => setEditingTitle(true)}
+									tabIndex={0}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') setEditingTitle(true);
+									}}
+									aria-label='Edit title'>
+									{title}
+								</h3>
+							)}
+							<Button
+								variant='ghost'
+								size='icon'
+								className='h-6 w-6'
+								onClick={toggleExpanded}
+								aria-label={expanded ? 'Collapse details' : 'Expand details'}>
+								{expanded ? (
+									<ChevronUp className='h-4 w-4' />
+								) : (
+									<ChevronDown className='h-4 w-4' />
+								)}
+							</Button>
 						</div>
-					))}
-					<div className='mt-1 flex'>
-						<input
-							type='text'
-							placeholder='Add a comment'
-							value={commentValue}
-							onChange={(e) => setCommentValue(e.target.value)}
+						<div className='flex items-center gap-1'>
+							<Badge className={nodeTypeColor[nodeType]} variant='secondary'>
+								<span className='flex items-center gap-1'>
+									{nodeTypeIcon[nodeType]}
+									{nodeType}
+								</span>
+							</Badge>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Badge
+										className={`${statusColor[status]} cursor-pointer hover:opacity-80`}
+										variant='secondary'
+										tabIndex={0}
+										role='button'
+										aria-label='Change status'>
+										{status}
+									</Badge>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start'>
+									{allStatuses.map((statusOption) => (
+										<DropdownMenuItem
+											key={statusOption}
+											onClick={() => handleStatusChange(statusOption)}
+											className='cursor-pointer'>
+											<Badge
+												className={`${statusColor[statusOption]} mr-2`}
+												variant='secondary'>
+												{statusOption}
+											</Badge>
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+							{status === 'done' && packageVersion && (
+								<Badge variant='outline' className='text-xs'>
+									v{packageVersion}
+								</Badge>
+							)}
+						</div>
+					</div>
+					{editingDescription ? (
+						<textarea
+							autoFocus
+							value={descriptionValue}
+							onChange={(e) => setDescriptionValue(e.target.value)}
+							onBlur={() => {
+								commitDescription();
+								setEditingDescription(false);
+							}}
 							onKeyDown={(e) => {
-								if (e.key === 'Enter') {
+								if (e.key === 'Enter' && !e.shiftKey) {
 									e.preventDefault();
-									handleAddComment();
+									commitDescription();
+									setEditingDescription(false);
+								}
+								if (e.key === 'Escape') {
+									setDescriptionValue(data.description);
+									setEditingDescription(false);
 								}
 							}}
-							className='w-full text-xs border border-gray-300 rounded p-1'
-							aria-label='New comment'
+							className='w-full h-full text-xs text-gray-600 dark:text-gray-300 border border-gray-300 rounded p-1 flex-1 resize-none'
+							style={{ minHeight: '60px' }}
 						/>
-						<button
-							onClick={handleAddComment}
-							className='ml-2 text-xs text-blue-500'>
-							Post
-						</button>
+					) : (
+						<p
+							className='mb-3 text-xs text-gray-600 dark:text-gray-300 flex-1 overflow-y-auto whitespace-pre-wrap'
+							onDoubleClick={() => setEditingDescription(true)}
+							tabIndex={0}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') setEditingDescription(true);
+							}}
+							aria-label='Edit description'>
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>
+								{description}
+							</ReactMarkdown>
+						</p>
+					)}
+					<div className='flex items-center justify-between text-[11px] text-gray-500 flex-none'>
+						<div className='flex items-center gap-2'>
+							<button
+								onClick={handleUpvote}
+								className='flex items-center gap-1'
+								aria-label='Upvote feature'
+								title='Upvote'>
+								👍 {upvotes}
+							</button>
+							<button
+								onClick={toggleComments}
+								className='flex items-center gap-1'
+								aria-label='Toggle comments'
+								tabIndex={0}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault();
+										toggleComments();
+									}
+								}}>
+								💬 {comments.length}
+							</button>
+						</div>
 					</div>
+					{expanded && (
+						<div className='mt-2 text-xs text-gray-700 flex-none overflow-y-auto'>
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>
+								{data.details || 'No details provided.'}
+							</ReactMarkdown>
+						</div>
+					)}
+					{showComments && (
+						<div className='mt-2 space-y-1 flex-none'>
+							{comments.map((c) => (
+								<div key={c.id} className='text-xs'>
+									<strong>{c.author}:</strong> {c.text}
+								</div>
+							))}
+							<div className='mt-1 flex'>
+								<input
+									type='text'
+									placeholder='Add a comment'
+									value={commentValue}
+									onChange={(e) => setCommentValue(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleAddComment();
+										}
+									}}
+									className='w-full text-xs border border-gray-300 rounded p-1'
+									aria-label='New comment'
+								/>
+								<button
+									onClick={handleAddComment}
+									className='ml-2 text-xs text-blue-500'>
+									Post
+								</button>
+							</div>
+						</div>
+					)}
 				</div>
-			)}
 
-			{/* Connection handles */}
-			<Handle
-				id='left'
-				type='target'
-				position={Position.Left}
-				className='w-3 !bg-indigo-500 relative flex items-center justify-center'
-				onDoubleClick={() => handleLabelDoubleClick('left')}
-				tabIndex={0}
-				onKeyDown={(e) => {
-					if (e.key === 'Enter') handleLabelDoubleClick('left');
-				}}>
-				{data.handleLabels?.['left'] && (
-					<span className='absolute -left-8 bg-white text-xs text-gray-700 px-1 rounded'>
-						{data.handleLabels['left']}
-					</span>
-				)}
-			</Handle>
-			<Handle
-				id='right'
-				type='source'
-				position={Position.Right}
-				className='w-3 !bg-indigo-500 relative flex items-center justify-center'
-				onDoubleClick={() => handleLabelDoubleClick('right')}
-				tabIndex={0}
-				onKeyDown={(e) => {
-					if (e.key === 'Enter') handleLabelDoubleClick('right');
-				}}>
-				{data.handleLabels?.['right'] && (
-					<span className='absolute -right-8 bg-white text-xs text-gray-700 px-1 rounded'>
-						{data.handleLabels['right']}
-					</span>
-				)}
-			</Handle>
+				{/* Connection handles - outside content wrapper so not affected by overlay */}
+				<Handle
+					id='left'
+					type='target'
+					position={Position.Left}
+					className='w-3 !bg-indigo-500 relative flex items-center justify-center'
+					style={{ zIndex: 20 }}
+					onDoubleClick={() => handleLabelDoubleClick('left')}
+					tabIndex={0}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') handleLabelDoubleClick('left');
+					}}>
+					{data.handleLabels?.['left'] && (
+						<span className='absolute -left-8 bg-white text-xs text-gray-700 px-1 rounded'>
+							{data.handleLabels['left']}
+						</span>
+					)}
+				</Handle>
+				<Handle
+					id='right'
+					type='source'
+					position={Position.Right}
+					className='w-3 !bg-indigo-500 relative flex items-center justify-center'
+					style={{ zIndex: 20 }}
+					onDoubleClick={() => handleLabelDoubleClick('right')}
+					tabIndex={0}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') handleLabelDoubleClick('right');
+					}}>
+					{data.handleLabels?.['right'] && (
+						<span className='absolute -right-8 bg-white text-xs text-gray-700 px-1 rounded'>
+							{data.handleLabels['right']}
+						</span>
+					)}
+				</Handle>
 
-			{/* Resize handle */}
-			<div
-				className='absolute bottom-0 right-0 w-4 h-4 cursor-se-resize hover:bg-gray-200 rounded-br-lg nodrag'
-				onMouseDown={handleResize}
-				style={{
-					background: 'linear-gradient(135deg, transparent 50%, #e5e7eb 50%)',
-				}}
-				aria-label='Resize node'
-			/>
-		</div>
+				{/* Resize handle - outside content wrapper */}
+				<div
+					className='absolute bottom-0 right-0 w-4 h-4 cursor-se-resize hover:bg-gray-200 rounded-br-lg nodrag'
+					onMouseDown={handleResize}
+					style={{
+						background: 'linear-gradient(135deg, transparent 50%, #e5e7eb 50%)',
+						zIndex: 20,
+					}}
+					aria-label='Resize node'
+				/>
+			</div>
+		</>
 	);
 }
 
