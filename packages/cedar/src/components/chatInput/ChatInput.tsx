@@ -302,7 +302,7 @@ export const ChatInput: React.FC<{
 				<div className='relative w-full h-fit' id='cedar-chat-input'>
 					{/* Chat editor row */}
 					<div className='relative w-full h-fit' id='cedar-chat-input'>
-						{voice.isListening ? (
+						{voice.isListening || voice.isSpeaking ? (
 							<div className='py-2 items-center justify-center w-full'>
 								<VoiceIndicator
 									voiceState={{
