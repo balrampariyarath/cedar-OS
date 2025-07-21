@@ -19,6 +19,7 @@ import {
 	Wrench,
 	Check,
 	X,
+	Bot,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -46,7 +47,8 @@ export type NodeType =
 	| 'bug'
 	| 'improvement'
 	| 'component'
-	| 'utils';
+	| 'utils'
+	| 'agent helper';
 export type DiffType = 'added' | 'removed' | 'changed';
 
 import { z } from 'zod';
@@ -64,7 +66,14 @@ export const FeatureNodeDataSchema = z.object({
 	),
 	status: z.enum(['done', 'planned', 'backlog', 'in progress']),
 	nodeType: z
-		.enum(['feature', 'bug', 'improvement', 'component', 'utils'])
+		.enum([
+			'feature',
+			'bug',
+			'improvement',
+			'component',
+			'utils',
+			'agent helper',
+		])
 		.default('feature'),
 	width: z.number().optional(),
 	height: z.number().optional(),
@@ -316,15 +325,17 @@ function FeatureNodeComponent({
 		improvement: 'bg-cyan-400/70',
 		component: 'bg-blue-400/70',
 		utils: 'bg-orange-400/70',
+		'agent helper': 'bg-emerald-400/70',
 	};
 
 	// Icon mapping for node types
 	const nodeTypeIcon: Record<NodeType, React.ReactNode> = {
-		feature: <Package className='h-3 w-3' />,
+		feature: <Lightbulb className='h-3 w-3' />,
 		bug: <Bug className='h-3 w-3' />,
-		improvement: <Lightbulb className='h-3 w-3' />,
+		improvement: <Package className='h-3 w-3' />,
 		component: <Component className='h-3 w-3' />,
 		utils: <Wrench className='h-3 w-3' />,
+		'agent helper': <Bot className='h-3 w-3' />,
 	};
 
 	// Soft background colors for status
