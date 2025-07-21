@@ -85,8 +85,10 @@ function FlowCanvas() {
 				execute: (currentNodes, node) => {
 					const nodes = currentNodes as Node<FeatureNodeData>[];
 					const nodeData = node as Node<FeatureNodeData>;
-					const newNode = {
+					const newNode: Node<FeatureNodeData> = {
 						...nodeData,
+						type: 'featureNode',
+						position: { x: Math.random() * 400, y: Math.random() * 400 },
 						id: nodeData.id || uuidv4(),
 						data: {
 							...nodeData.data,

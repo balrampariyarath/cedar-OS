@@ -7,6 +7,8 @@ export interface LLMResponse {
 		totalTokens: number;
 	};
 	metadata?: Record<string, unknown>;
+	// The object field contains structured output when using JSON Schema or Zod
+	object?: any;
 }
 
 export type StreamEvent =

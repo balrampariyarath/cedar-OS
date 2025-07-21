@@ -200,28 +200,57 @@ export const createAgentInputContextSlice: StateCreator<
 		const editorContent = state.stringifyEditor();
 		const context = state.additionalContext;
 
-		// Start with the editor content
-		let result = editorContent;
+		let result = `User Text: ${editorContent}\n\n`;
 
-		// Add context information
-		const contextParts: string[] = [];
-
-		Object.entries(context).forEach(([key, entries]) => {
-			if (entries && entries.length > 0) {
-				const contextItems = entries.map((entry) => {
-					// Get the label from metadata or use the ID
-					const label = entry.metadata?.label || entry.id;
-					// For context items, we'll format them as [context:label]
-					return `[${key}:${label}]`;
-				});
-				contextParts.push(...contextItems);
+		// Helper function to sanitize context data for JSON serialization
+		const sanitizeForJSON = (obj: any): any => {
+			if (obj === null || obj === undefined) {
+				return obj;
 			}
-		});
 
-		// If there's context, append it to the result
-		if (contextParts.length > 0) {
-			result += '\n\nContext:\n' + contextParts.join('\n');
-		}
+			// Handle arrays
+			if (Array.isArray(obj)) {
+				return obj.map(sanitizeForJSON);
+			}
+
+			// Handle objects
+			if (typeof obj === 'object') {
+				// Check if it's a React element (has $$typeof property)
+				if ('$$typeof' in obj) {
+					return '[React Component]';
+				}
+
+				// Check if it's a DOM element
+				if (obj instanceof Element) {
+					return '[DOM Element]';
+				}
+
+				// Recursively sanitize object properties
+				const sanitized: any = {};
+				for (const [key, value] of Object.entries(obj)) {
+					// Skip functions
+					if (typeof value === 'function') {
+						sanitized[key] = '[Function]';
+					} else {
+						sanitized[key] = sanitizeForJSON(value);
+					}
+				}
+				return sanitized;
+			}
+
+			// Return primitives as-is
+			return obj;
+		};
+
+		// Sanitize context before stringifying
+		const sanitizedContext = sanitizeForJSON(context);
+
+		// Add additional context as simple JSON
+		result += `Additional Context: ${JSON.stringify(
+			sanitizedContext,
+			null,
+			2
+		)}`;
 
 		return result;
 	},

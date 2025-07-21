@@ -19,6 +19,151 @@ const ChatRequestSchema = z.object({
 	output: z.any().optional(),
 });
 
+// Define schemas for product roadmap actions
+const FeatureNodeDataSchema = z.object({
+	title: z.string(),
+	description: z.string(),
+	status: z
+		.enum(['done', 'planned', 'backlog', 'in progress'])
+		.default('planned'),
+	nodeType: z.literal('feature').default('feature'),
+	upvotes: z.number().default(0),
+	comments: z
+		.array(
+			z.object({
+				id: z.string(),
+				author: z.string(),
+				text: z.string(),
+			})
+		)
+		.default([]),
+});
+
+const NodeSchema = z.object({
+	id: z.string().optional(),
+	position: z
+		.object({
+			x: z.number(),
+			y: z.number(),
+		})
+		.optional(),
+	data: FeatureNodeDataSchema,
+});
+
+// Action schemas
+const AddNodeActionSchema = z.object({
+	type: z.literal('action'),
+	stateKey: z.literal('nodes'),
+	setterKey: z.literal('addNode'),
+	args: z.array(NodeSchema),
+	content: z.string(),
+});
+
+const RemoveNodeActionSchema = z.object({
+	type: z.literal('action'),
+	stateKey: z.literal('nodes'),
+	setterKey: z.literal('removeNode'),
+	args: z.array(z.string()), // Just the node ID
+	content: z.string(),
+});
+
+const ChangeNodeActionSchema = z.object({
+	type: z.literal('action'),
+	stateKey: z.literal('nodes'),
+	setterKey: z.literal('changeNode'),
+	args: z.array(NodeSchema),
+	content: z.string(),
+});
+
+const MessageResponseSchema = z.object({
+	type: z.literal('message'),
+	content: z.string(),
+	role: z.literal('assistant').default('assistant'),
+});
+
+// Union of all possible responses
+const ExecuteFunctionResponseSchema = z.union([
+	AddNodeActionSchema,
+	RemoveNodeActionSchema,
+	ChangeNodeActionSchema,
+	MessageResponseSchema,
+]);
+
+// Execute function handler - returns structured actions or messages
+async function handleExecuteFunction(c: Context) {
+	try {
+		const body = await c.req.json();
+		const { prompt, temperature, maxTokens, systemPrompt } =
+			ChatRequestSchema.parse(body);
+
+		const agent = c.get('mastra').getAgent('productRoadmapAgent') as Agent;
+		if (!agent) {
+			return c.json({ error: 'Agent not found' }, 404);
+		}
+
+		// Enhanced system prompt to guide the agent to return structured actions
+		const enhancedSystemPrompt = `${systemPrompt || ''}
+You are a product roadmap assistant. When users ask you to modify the roadmap, you should return structured actions.
+
+Available actions:
+1. addNode - Add a new feature node to the roadmap
+2. removeNode - Remove a feature node by ID
+3. changeNode - Update an existing feature node
+
+When returning an action, use this exact structure:
+{
+  "type": "action",
+  "stateKey": "nodes",
+  "setterKey": "addNode" | "removeNode" | "changeNode",
+  "args": [appropriate arguments],
+  "content": "A human-readable description of what you did"
+}
+
+For addNode, args should be: [{ data: { title, description, status, nodeType: "feature", upvotes: 0, comments: [] } }]
+For removeNode, args should be: ["nodeId"]
+For changeNode, args should be: [{ id: "nodeId", data: { ...updated fields } }]
+
+If the user is just asking a question or making a comment, return:
+{
+  "type": "message",
+  "content": "Your response",
+  "role": "assistant"
+}`;
+
+		// Convert prompt to messages format for the agent
+		const messages = [
+			{ role: 'system' as const, content: enhancedSystemPrompt },
+			{ role: 'user' as const, content: prompt },
+		];
+
+		const response = await agent.generate(messages, {
+			temperature,
+			maxTokens,
+			// maxSteps: 3, // Allow tool usage
+			experimental_output: ExecuteFunctionResponseSchema, // Use experimental_output for structured output with tools
+		});
+
+		// Return the structured response
+		return c.json({
+			text: response.object?.content || '', // Extract content from the structured object
+			object: response.object || {
+				type: 'message',
+				content: '',
+				role: 'assistant',
+			},
+			usage: response.usage,
+		});
+	} catch (error) {
+		console.error('Execute function error:', error);
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : 'Internal server error',
+			},
+			500
+		);
+	}
+}
+
 // Chat handler - regular text generation
 async function handleChatMessage(c: Context) {
 	try {
@@ -404,6 +549,40 @@ const apiRoutes = [
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+	}),
+	registerApiRoute('/chat/execute-function', {
+		method: 'POST',
+		handler: handleExecuteFunction,
+		openapi: {
+			requestBody: {
+				content: {
+					'application/json': {
+						schema: {
+							type: 'object',
+							properties: {
+								prompt: {
+									type: 'string',
+									description: 'The prompt to send to the agent',
+								},
+								model: {
+									type: 'string',
+								},
+								temperature: {
+									type: 'number',
+								},
+								maxTokens: {
+									type: 'number',
+								},
+								systemPrompt: {
+									type: 'string',
+								},
+							},
+							required: ['prompt'],
 						},
 					},
 				},
