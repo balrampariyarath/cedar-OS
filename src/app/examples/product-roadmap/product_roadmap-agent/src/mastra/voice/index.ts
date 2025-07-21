@@ -1,15 +1,16 @@
 import { OpenAIVoice } from '@mastra/voice-openai';
 import { Readable } from 'stream';
 import type { Context } from 'hono';
+import { env } from '../env';
 
 // Initialize the voice provider
 export const voice = new OpenAIVoice({
 	speechModel: {
-		apiKey: process.env.OPENAI_API_KEY,
+		apiKey: env.OPENAI_API_KEY!,
 		name: 'tts-1',
 	},
 	listeningModel: {
-		apiKey: process.env.OPENAI_API_KEY,
+		apiKey: env.OPENAI_API_KEY!,
 		name: 'whisper-1',
 	},
 });

@@ -100,10 +100,16 @@ export const mastraProvider: ProviderImplementation<
 		}
 
 		const data = await response.json();
+
+		// Mastra returns structured output in the 'object' field when using JSON Schema
 		return {
-			content: data.content || data.text || '',
+			content: data.text || data.content || '',
 			usage: data.usage,
-			metadata: data.metadata,
+			metadata: {
+				model: data.model,
+				id: data.id,
+			},
+			object: data.object, // Include the structured output if present
 		};
 	},
 

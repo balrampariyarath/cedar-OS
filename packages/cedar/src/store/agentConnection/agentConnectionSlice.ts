@@ -65,6 +65,7 @@ export interface AgentConnectionSlice {
 
 	// High-level methods that use callLLM/streamLLM
 	sendMessage: (params?: SendMessageParams) => Promise<void>;
+	handleLLMResult: (response: LLMResponse) => void;
 
 	// Configuration methods
 	setProviderConfig: (config: ProviderConfig) => void;
@@ -87,6 +88,7 @@ export type TypedAgentConnectionSlice<T extends ProviderConfig> = Omit<
 		params: GetParamsForConfig<T>,
 		handler: StreamHandler
 	) => StreamResponse;
+	handleLLMResult: (response: LLMResponse) => void;
 };
 
 export const improvePrompt = async (
@@ -257,6 +259,53 @@ export const createAgentConnectionSlice: StateCreator<
 		};
 	},
 
+	// Handle LLM result based on type
+	handleLLMResult: (response: LLMResponse) => {
+		const state = get();
+
+		// Check if there's an object field with structured output
+		if (response.object && typeof response.object === 'object') {
+			const structuredResponse = response.object;
+
+			// Handle based on the type field in the structured response
+			if (structuredResponse.type) {
+				switch (structuredResponse.type) {
+					case 'action': {
+						// Execute the custom setter with the provided parameters
+						if (structuredResponse.stateKey && structuredResponse.setterKey) {
+							const args = structuredResponse.args || [];
+							state.executeCustomSetter(
+								structuredResponse.stateKey,
+								structuredResponse.setterKey,
+								...args
+							);
+						}
+						break;
+					}
+					case 'message': {
+						// Add as a message with specific role/content
+						state.addMessage({
+							role: structuredResponse.role || 'assistant',
+							type: 'text',
+							content: structuredResponse.content || response.content,
+						});
+						return; // Don't add the default message
+					}
+					// Add more cases as needed
+				}
+			}
+		}
+
+		// Default behavior: add the response content as an assistant message
+		if (response.content) {
+			state.addMessage({
+				role: 'assistant',
+				type: 'text',
+				content: response.content,
+			});
+		}
+	},
+
 	// High-level sendMessage method that demonstrates flexible usage
 	sendMessage: async (params?: SendMessageParams) => {
 		const { model, systemPrompt, route, temperature } = params || {};
@@ -302,7 +351,10 @@ export const createAgentConnectionSlice: StateCreator<
 					llmParams = { ...llmParams, model: model || 'gpt-4o-mini' };
 					break;
 				case 'mastra':
-					llmParams = { ...llmParams, route: route || '/chat' };
+					llmParams = {
+						...llmParams,
+						route: route || '/chat/execute-function',
+					};
 					break;
 				case 'ai-sdk':
 					llmParams = { ...llmParams, model: model || 'openai/gpt-4o-mini' };
@@ -312,12 +364,8 @@ export const createAgentConnectionSlice: StateCreator<
 			// Step 5: Make the LLM call
 			const response = await state.callLLM(llmParams);
 
-			// Step 6: Add the response as an assistant message
-			state.addMessage({
-				role: 'assistant',
-				type: 'text',
-				content: response.content,
-			});
+			// Step 6: Handle the response
+			state.handleLLMResult(response);
 
 			// Clear the chat input content after successful send
 			state.setChatInputContent({
